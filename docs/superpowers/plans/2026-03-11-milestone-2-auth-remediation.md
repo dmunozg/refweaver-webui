@@ -87,11 +87,11 @@
 - [x] Step 2: Update store methods to return typed shapes.
 - [x] Step 3: Update consumers and tests.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ## Final Verification Gate
 
-- [ ] Step 1: Run focused auth tests (unit + route + integration).
-- [ ] Step 2: Run `bun run test`.
-- [ ] Step 3: Manually verify login/me/logout/protected flow including expired-session rejection.
+- [x] Step 1: Run focused auth tests (unit + route + integration).
+- [x] Step 2: Run `bun run test`.
+- [x] Step 3: Manually verify login/me/logout/protected flow including expired-session rejection.
 - [ ] Step 4: Update checklist and commit.
