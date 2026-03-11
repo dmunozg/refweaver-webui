@@ -92,10 +92,10 @@
 - Modify: `apps/web/src/App.tsx`
 - Modify: `apps/web/src/main.tsx`
 
-- [ ] Step 1: Write failing test for auth bootstrap states.
-- [ ] Step 2: Run test to verify failure.
-- [ ] Step 3: Implement minimal `/auth/me` bootstrap flow.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Write failing test for auth bootstrap states.
+- [x] Step 2: Run test to verify failure.
+- [x] Step 3: Implement minimal `/auth/me` bootstrap flow.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ### Task 7: Add login/logout UI
