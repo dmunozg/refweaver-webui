@@ -36,7 +36,7 @@
 - [x] Step 2: Run test to verify failure.
 - [x] Step 3: Implement minimal login orchestration.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ### Task 3: Add logout + session parsing helpers
 
@@ -46,11 +46,11 @@
 - Test: `apps/bff/src/auth/logout.test.ts`
 - Test: `apps/bff/src/auth/session.test.ts`
 
-- [ ] Step 1: Write failing tests for token extraction and session deletion.
-- [ ] Step 2: Run tests to verify failure.
-- [ ] Step 3: Implement minimal helpers.
-- [ ] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 1: Write failing tests for token extraction and session deletion.
+- [x] Step 2: Run tests to verify failure.
+- [x] Step 3: Implement minimal helpers.
+- [x] Step 4: Re-run tests to verify pass.
+- [x] Step 5: Commit.
 
 ## Chunk 2: BFF Route Layer and Protection
 
