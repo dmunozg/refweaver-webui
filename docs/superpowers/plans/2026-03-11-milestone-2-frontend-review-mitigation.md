@@ -48,10 +48,10 @@
 - Modify: `apps/web/src/auth/types.ts` (introduce tagged error types/constants)
 - Modify: `apps/web/src/auth/use-auth.ts`
 
-- [ ] Step 1: Introduce typed/tagged auth error categories.
-- [ ] Step 2: Preserve server/network distinctions for login/logout/me failures.
-- [ ] Step 3: Make `logoutRequest` throw on non-2xx.
-- [ ] Step 4: Commit.
+- [x] Step 1: Introduce typed/tagged auth error categories.
+- [x] Step 2: Preserve server/network distinctions for login/logout/me failures.
+- [x] Step 3: Make `logoutRequest` throw on non-2xx.
+- [x] Step 4: Commit.
 
 ### Task 3: Improve app-level UX reliability
 
@@ -61,11 +61,11 @@
 - Modify: `apps/web/src/App.tsx`
 - Modify: `apps/web/src/auth/LoginForm.tsx`
 
-- [ ] Step 1: Handle logout errors explicitly (no fire-and-forget void path).
-- [ ] Step 2: Differentiate invalid credentials vs generic login failures in UI.
-- [ ] Step 3: Add duplicate-submit guard during in-flight login.
-- [ ] Step 4: Add basic a11y enhancements (`aria-live`, `required`, autocomplete attrs).
-- [ ] Step 5: Commit.
+- [x] Step 1: Handle logout errors explicitly (no fire-and-forget void path).
+- [x] Step 2: Differentiate invalid credentials vs generic login failures in UI.
+- [x] Step 3: Add duplicate-submit guard during in-flight login.
+- [x] Step 4: Add basic a11y enhancements (`aria-live`, `required`, autocomplete attrs).
+- [x] Step 5: Commit.
 
 ### Task 4: Deepen tests to behavior level
 
@@ -76,10 +76,10 @@
 - Modify: `apps/web/src/auth/use-auth.test.ts`
 - Create (if needed): `apps/web/src/App.auth.test.tsx`
 
-- [ ] Step 1: Add success-path assertions for login form behavior.
-- [ ] Step 2: Add non-401 bootstrap error path tests.
-- [ ] Step 3: Add tests for submit guard and logout error handling.
-- [ ] Step 4: Commit.
+- [x] Step 1: Add success-path assertions for login form behavior.
+- [x] Step 2: Add non-401 bootstrap error path tests.
+- [x] Step 3: Add tests for submit guard and logout error handling.
+- [x] Step 4: Commit.
 
 ### Task 5: Verification artifacting
 
@@ -89,16 +89,16 @@
 - Modify: `docs/superpowers/plans/2026-03-11-milestone-2-auth-session-core.md`
 - Optional create: `docs/verification/2026-03-11-m2-frontend-auth.md`
 
-- [ ] Step 1: Re-run frontend and full tests.
-- [ ] Step 2: Add concise, durable verification notes with command + outcome.
-- [ ] Step 3: Commit final checklist completion.
+- [x] Step 1: Re-run frontend and full tests.
+- [x] Step 2: Add concise, durable verification notes with command + outcome.
+- [x] Step 3: Commit final checklist completion.
 
 ---
 
 ## Exit Criteria
 
 - [ ] No important findings remain open from the latest spec + quality reviews.
-- [ ] UI distinguishes credential errors from generic failures.
-- [ ] Logout failures are surfaced and not silently ignored.
-- [ ] Frontend auth tests cover success, failure, and state transitions.
-- [ ] Plan/spec docs reflect the implemented scope accurately.
+- [x] UI distinguishes credential errors from generic failures.
+- [x] Logout failures are surfaced and not silently ignored.
+- [x] Frontend auth tests cover success, failure, and state transitions.
+- [x] Plan/spec docs reflect the implemented scope accurately.

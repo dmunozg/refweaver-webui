@@ -12,6 +12,9 @@ export function LoginForm({ onLogin, isSubmitting, error }: LoginFormProps) {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) {
+      return;
+    }
     await onLogin(identifier, password);
   }
 
@@ -23,6 +26,9 @@ export function LoginForm({ onLogin, isSubmitting, error }: LoginFormProps) {
           value={identifier}
           onChange={(event) => setIdentifier(event.target.value)}
           name="identifier"
+          autoComplete="username"
+          required
+          disabled={isSubmitting}
         />
       </label>
       <label>
@@ -32,9 +38,12 @@ export function LoginForm({ onLogin, isSubmitting, error }: LoginFormProps) {
           onChange={(event) => setPassword(event.target.value)}
           name="password"
           type="password"
+          autoComplete="current-password"
+          required
+          disabled={isSubmitting}
         />
       </label>
-      {error ? <p>{error}</p> : null}
+      {error ? <p aria-live="polite">{error}</p> : null}
       <button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Logging in..." : "Log in"}
       </button>

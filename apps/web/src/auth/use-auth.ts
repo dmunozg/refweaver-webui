@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchCurrentUser, loginRequest, logoutRequest } from "./api";
+import { AuthClientError, fetchCurrentUser, loginRequest, logoutRequest } from "./api";
 import type { AuthState, AuthUser } from "./types";
 
 export const INITIAL_AUTH_STATE: AuthState = {
@@ -19,7 +19,7 @@ export async function bootstrapAuthState(fetcher: BootstrapFetcher): Promise<Aut
       error: null
     };
   } catch (error) {
-    if (error instanceof Error && error.message === "unauthorized") {
+    if (error instanceof AuthClientError && error.code === "unauthorized") {
       return {
         status: "signed_out",
         user: null,

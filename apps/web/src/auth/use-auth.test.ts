@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AuthClientError } from "./api";
 import { bootstrapAuthState } from "./use-auth";
 
 describe("bootstrapAuthState", () => {
@@ -19,9 +20,17 @@ describe("bootstrapAuthState", () => {
 
   it("returns signed out state when /auth/me returns unauthorized", async () => {
     const state = await bootstrapAuthState(async () => {
-      throw new Error("unauthorized");
+      throw new AuthClientError("unauthorized");
     });
 
     expect(state.status).toBe("signed_out");
+  });
+
+  it("returns error state when /auth/me fails for non-auth reasons", async () => {
+    const state = await bootstrapAuthState(async () => {
+      throw new AuthClientError("network_error");
+    });
+
+    expect(state.status).toBe("error");
   });
 });
