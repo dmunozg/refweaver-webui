@@ -21,10 +21,26 @@ type InsertableDb = {
   };
 };
 
+export type AuthUser = {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  teamId: string | null;
+};
+
+export type AuthSession = {
+  id: string;
+  userId: string;
+  sessionTokenHash: string;
+  expiresAt: Date;
+};
+
 export type AuthStore = SignupStore & {
-  findUserByIdentifier(identifier: string): Promise<Record<string, unknown> | null>;
-  findUserById(userId: string): Promise<Record<string, unknown> | null>;
-  findSessionByTokenHash(tokenHash: string): Promise<Record<string, unknown> | null>;
+  findUserByIdentifier(identifier: string): Promise<AuthUser | null>;
+  findUserById(userId: string): Promise<AuthUser | null>;
+  findSessionByTokenHash(tokenHash: string): Promise<AuthSession | null>;
   deleteSessionByTokenHash(tokenHash: string): Promise<void>;
 };
 
@@ -52,11 +68,13 @@ function createStoreForDb(db: InsertableDb): AuthStore {
         .where(or(eq(users.username, identifier), eq(users.email, identifier)))
         .limit(1);
 
-      return rows[0] ?? null;
+      const [row] = rows as AuthUser[];
+      return row ?? null;
     },
     async findUserById(userId) {
       const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
-      return rows[0] ?? null;
+      const [row] = rows as AuthUser[];
+      return row ?? null;
     },
     async findSessionByTokenHash(tokenHash) {
       const rows = await db
@@ -65,7 +83,8 @@ function createStoreForDb(db: InsertableDb): AuthStore {
         .where(eq(sessions.sessionTokenHash, tokenHash))
         .limit(1);
 
-      return rows[0] ?? null;
+      const [row] = rows as AuthSession[];
+      return row ?? null;
     },
     async deleteSessionByTokenHash(tokenHash) {
       await db.delete(sessions).where(eq(sessions.sessionTokenHash, tokenHash));

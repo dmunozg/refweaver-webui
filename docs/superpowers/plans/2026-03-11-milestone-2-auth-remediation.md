@@ -44,7 +44,7 @@
 - [x] Step 2: Run tests to verify failure.
 - [x] Step 3: Implement expiration checks (`expiresAt > now`) and optional cleanup.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ## Chunk C: JSON Parse Hardening (Important)
 
@@ -58,7 +58,7 @@
 - [x] Step 2: Run tests to verify failure.
 - [x] Step 3: Add guarded parse handling returning deterministic client error.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ## Chunk D: Integration Coverage Completion (Important)
 
@@ -71,7 +71,7 @@
 - [x] Step 2: Run tests to verify failure.
 - [x] Step 3: Implement any minimal code fixes required by integration behavior.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ## Chunk E: Type Hardening (Minor)
 
@@ -83,10 +83,10 @@
 - Modify: `apps/bff/src/middleware/require-auth.ts`
 - Test: `apps/bff/src/auth/store.test.ts`
 
-- [ ] Step 1: Define explicit `AuthUser` and `AuthSession` types.
-- [ ] Step 2: Update store methods to return typed shapes.
-- [ ] Step 3: Update consumers and tests.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Define explicit `AuthUser` and `AuthSession` types.
+- [x] Step 2: Update store methods to return typed shapes.
+- [x] Step 3: Update consumers and tests.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ## Final Verification Gate
