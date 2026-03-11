@@ -109,13 +109,13 @@
 - [x] Step 2: Run test to verify failure.
 - [x] Step 3: Implement minimal login form and logout action.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ## Chunk 4: Verification and Completion
 
 ### Task 8: Milestone 2 verification gate
 
-- [ ] Step 1: Run `bun run test`.
-- [ ] Step 2: Run BFF dev startup smoke test with required env vars.
-- [ ] Step 3: Manually verify signup/login/me/logout/protected flow.
-- [ ] Step 4: Commit remaining verification/docs updates.
+- [x] Step 1: Run `bun run test`.
+- [x] Step 2: Run BFF dev startup smoke test with required env vars.
+- [x] Step 3: Manually verify signup/login/me/logout/protected flow.
+- [x] Step 4: Commit remaining verification/docs updates.
