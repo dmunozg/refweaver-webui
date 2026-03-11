@@ -25,6 +25,47 @@ type LoginResponse = {
 
 const { bffBaseUrl } = getWebConfig();
 
+function isAuthUser(input: unknown): input is AuthUser {
+  if (!input || typeof input !== "object") {
+    return false;
+  }
+
+  const candidate = input as Record<string, unknown>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.username === "string" &&
+    typeof candidate.email === "string" &&
+    typeof candidate.name === "string" &&
+    (typeof candidate.teamId === "string" || candidate.teamId === null)
+  );
+}
+
+function parseMeResponse(input: unknown): MeResponse {
+  if (!input || typeof input !== "object") {
+    throw new AuthClientError("unknown");
+  }
+
+  const body = input as Record<string, unknown>;
+  if (!isAuthUser(body.user)) {
+    throw new AuthClientError("unknown");
+  }
+
+  return { user: body.user };
+}
+
+function parseLoginResponse(input: unknown): LoginResponse {
+  if (!input || typeof input !== "object") {
+    throw new AuthClientError("unknown");
+  }
+
+  const body = input as Record<string, unknown>;
+  if (typeof body.userId !== "string") {
+    throw new AuthClientError("unknown");
+  }
+
+  return { userId: body.userId };
+}
+
 export async function fetchCurrentUser(): Promise<MeResponse> {
   let response: Response;
   try {
@@ -43,7 +84,8 @@ export async function fetchCurrentUser(): Promise<MeResponse> {
     throw new AuthClientError("server_error");
   }
 
-  return (await response.json()) as MeResponse;
+  const body = await response.json();
+  return parseMeResponse(body);
 }
 
 export async function loginRequest(identifier: string, password: string): Promise<LoginResponse> {
@@ -67,7 +109,8 @@ export async function loginRequest(identifier: string, password: string): Promis
     throw new AuthClientError("server_error");
   }
 
-  return (await response.json()) as LoginResponse;
+  const body = await response.json();
+  return parseLoginResponse(body);
 }
 
 export async function logoutRequest(): Promise<void> {
@@ -79,6 +122,10 @@ export async function logoutRequest(): Promise<void> {
     });
   } catch {
     throw new AuthClientError("network_error");
+  }
+
+  if (response.status === 401) {
+    return;
   }
 
   if (!response.ok) {

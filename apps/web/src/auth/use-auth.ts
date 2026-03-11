@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AuthClientError, fetchCurrentUser, loginRequest, logoutRequest } from "./api";
 import type { AuthState, AuthUser } from "./types";
 
@@ -37,26 +37,53 @@ export async function bootstrapAuthState(fetcher: BootstrapFetcher): Promise<Aut
 
 export function useAuth() {
   const [state, setState] = useState<AuthState>(INITIAL_AUTH_STATE);
+  const isMountedRef = useRef(true);
+  const requestCounterRef = useRef(0);
+
+  async function runLatest(task: () => Promise<AuthState>) {
+    requestCounterRef.current += 1;
+    const requestId = requestCounterRef.current;
+    const nextState = await task();
+
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    if (requestCounterRef.current !== requestId) {
+      return;
+    }
+
+    setState(nextState);
+  }
 
   async function refresh() {
-    setState({ status: "loading", user: null, error: null });
-    const nextState = await bootstrapAuthState(fetchCurrentUser);
-    setState(nextState);
+    if (isMountedRef.current) {
+      setState({ status: "loading", user: null, error: null });
+    }
+
+    await runLatest(() => bootstrapAuthState(fetchCurrentUser));
   }
 
   async function login(identifier: string, password: string) {
     await loginRequest(identifier, password);
-    const nextState = await bootstrapAuthState(fetchCurrentUser);
-    setState(nextState);
+    await runLatest(() => bootstrapAuthState(fetchCurrentUser));
   }
 
   async function logout() {
     await logoutRequest();
-    setState({ status: "signed_out", user: null, error: null });
+    if (isMountedRef.current) {
+      requestCounterRef.current += 1;
+      setState({ status: "signed_out", user: null, error: null });
+    }
   }
 
   useEffect(() => {
+    isMountedRef.current = true;
     void refresh();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   return {

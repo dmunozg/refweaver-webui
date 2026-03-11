@@ -12,18 +12,18 @@
 
 ## Checklist of Validated Findings
 
-- [ ] Task 6 plan/implementation mismatch: `apps/web/src/main.tsx` listed but unchanged.
-- [ ] Task 7 tests do not fully cover success-path behavior.
-- [ ] Protected app shell is minimal and needs explicit scope/acceptance alignment.
-- [ ] Frontend error-class fidelity is weak (errors collapsed too aggressively).
-- [ ] Verification evidence is mostly conversational; repo-level artifacting can be improved.
-- [ ] Login failure UX is misleading for non-credential failures.
-- [ ] Logout request does not enforce `response.ok`.
-- [ ] Logout click path does not handle async failures visibly.
-- [ ] Auth tests are shallow for interaction/state-transition behavior.
-- [ ] String-based error signaling is brittle.
-- [ ] Duplicate-submit guard for login form can be improved.
-- [ ] A11y improvements pending (`aria-live`, autocomplete, required hints).
+- [x] Task 6 plan/implementation mismatch: `apps/web/src/main.tsx` listed but unchanged.
+- [x] Task 7 tests do not fully cover success-path behavior.
+- [x] Protected app shell is minimal and needs explicit scope/acceptance alignment.
+- [x] Frontend error-class fidelity is weak (errors collapsed too aggressively).
+- [x] Verification evidence is mostly conversational; repo-level artifacting can be improved.
+- [x] Login failure UX is misleading for non-credential failures.
+- [x] Logout request does not enforce `response.ok`.
+- [x] Logout click path does not handle async failures visibly.
+- [x] Auth tests are shallow for interaction/state-transition behavior.
+- [x] String-based error signaling is brittle.
+- [x] Duplicate-submit guard for login form can be improved.
+- [x] A11y improvements pending (`aria-live`, autocomplete, required hints).
 
 ## Short Mitigation Plan
 
@@ -37,7 +37,7 @@
 
 - [x] Step 1: Update Task 6 file list to match actual architecture or add explicit `main.tsx` integration if required.
 - [x] Step 2: Clarify what counts as Milestone 2 “protected app shell” minimal acceptance.
-- [ ] Step 3: Commit.
+- [x] Step 3: Commit.
 
 ### Task 2: Harden auth API error semantics
 
@@ -50,7 +50,7 @@
 
 - [x] Step 1: Introduce typed/tagged auth error categories.
 - [x] Step 2: Preserve server/network distinctions for login/logout/me failures.
-- [x] Step 3: Make `logoutRequest` throw on non-2xx.
+- [x] Step 3: Handle non-2xx responses explicitly for logout, including non-fatal `401`.
 - [x] Step 4: Commit.
 
 ### Task 3: Improve app-level UX reliability
