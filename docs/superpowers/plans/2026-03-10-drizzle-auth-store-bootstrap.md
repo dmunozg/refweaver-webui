@@ -337,7 +337,7 @@ Expected: FAIL until all wiring is complete.
 Run: `bun test apps/bff/src/routes/auth.integration.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/bff/src/routes/auth.integration.test.ts apps/bff/src/routes/auth.ts apps/bff/src/auth/store.ts apps/bff/src/index.ts
@@ -371,7 +371,7 @@ curl -i -X POST http://localhost:3001/auth/signup \
 
 Expected: `201 Created`, `Set-Cookie: rw_session=...`, DB rows for users/projects/sessions exist.
 
-- [ ] **Step 4: Commit verification artifacts if any**
+- [x] **Step 4: Commit verification artifacts if any**
 
 ```bash
 git add .
