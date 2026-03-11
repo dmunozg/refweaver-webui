@@ -96,7 +96,7 @@
 - [x] Step 2: Run test to verify failure.
 - [x] Step 3: Implement minimal `/auth/me` bootstrap flow.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ### Task 7: Add login/logout UI
 
@@ -105,10 +105,10 @@
 - Modify: `apps/web/src/App.tsx`
 - Test: `apps/web/src/auth/LoginForm.test.tsx`
 
-- [ ] Step 1: Write failing test for login success/error rendering.
-- [ ] Step 2: Run test to verify failure.
-- [ ] Step 3: Implement minimal login form and logout action.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Write failing test for login success/error rendering.
+- [x] Step 2: Run test to verify failure.
+- [x] Step 3: Implement minimal login form and logout action.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ## Chunk 4: Verification and Completion
