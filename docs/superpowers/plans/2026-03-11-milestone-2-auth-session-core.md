@@ -66,7 +66,7 @@
 - [x] Step 2: Run tests to verify failure.
 - [x] Step 3: Implement handlers.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ### Task 5: Add protected-route middleware
 
@@ -75,10 +75,10 @@
 - Modify: `apps/bff/src/app.ts`
 - Test: `apps/bff/src/routes/protected.test.ts` (or extend existing tests)
 
-- [ ] Step 1: Write failing tests for 401 and authorized access.
-- [ ] Step 2: Run tests to verify failure.
-- [ ] Step 3: Implement middleware.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Write failing tests for 401 and authorized access.
+- [x] Step 2: Run tests to verify failure.
+- [x] Step 3: Implement middleware.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ## Chunk 3: Frontend Protected Shell Bootstrap

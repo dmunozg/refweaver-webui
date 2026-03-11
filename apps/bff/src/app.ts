@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { AuthStore } from "./auth/store";
+import { requireAuth } from "./middleware/require-auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerHealthRoute } from "./routes/health";
 
@@ -12,6 +13,7 @@ export function createApp(deps: AppDeps) {
 
   registerHealthRoute(app);
   registerAuthRoutes(app, deps.signupStore);
+  app.get("/protected/ping", requireAuth(deps.signupStore), (c) => c.json({ status: "ok" }, 200));
 
   return app;
 }
