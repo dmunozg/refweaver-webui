@@ -1,5 +1,7 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import TestRenderer, { act } from "react-test-renderer";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("./auth/use-auth", () => ({
   useAuth: vi.fn()
@@ -33,9 +35,15 @@ describe("App auth shell", () => {
       logout: async () => {}
     });
 
-    const html = renderToStaticMarkup(<App />);
-    expect(html).toContain("Welcome, Ada");
-    expect(html).toContain("Log out");
+    let renderer: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<App />);
+    });
+    const text = JSON.stringify(renderer!.toJSON());
+
+    expect(text).toContain("Welcome");
+    expect(text).toContain("Ada");
+    expect(text).toContain("Log out");
   });
 
   it("renders signed-out shell when session is missing", () => {
@@ -50,7 +58,48 @@ describe("App auth shell", () => {
       logout: async () => {}
     });
 
-    const html = renderToStaticMarkup(<App />);
-    expect(html).toContain("Please log in");
+    let renderer: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<App />);
+    });
+    const text = JSON.stringify(renderer!.toJSON());
+    expect(text).toContain("Please log in");
+  });
+
+  it("shows visible error when logout fails", async () => {
+    const logout = vi.fn(async () => {
+      throw new Error("server");
+    });
+
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "authenticated",
+        user: {
+          id: "user-1",
+          username: "ada",
+          email: "ada@example.com",
+          name: "Ada",
+          teamId: null
+        },
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      logout
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+    const logoutButton = renderer!.root.findByType("button");
+
+    await act(async () => {
+      await logoutButton.props.onClick();
+    });
+
+    expect(logout).toHaveBeenCalledTimes(1);
+    const text = JSON.stringify(renderer!.toJSON());
+    expect(text).toContain("Could not log out. Please try again.");
   });
 });

@@ -97,7 +97,7 @@
 
 ## Exit Criteria
 
-- [ ] No important findings remain open from the latest spec + quality reviews.
+- [x] No important findings remain open from the latest spec + quality reviews.
 - [x] UI distinguishes credential errors from generic failures.
 - [x] Logout failures are surfaced and not silently ignored.
 - [x] Frontend auth tests cover success, failure, and state transitions.
