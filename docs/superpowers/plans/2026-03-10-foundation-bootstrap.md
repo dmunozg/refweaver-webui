@@ -28,7 +28,7 @@
 - Create: `packages/shared-types/package.json`
 - Create: `packages/shared-types/tsconfig.json`
 
-- [ ] **Step 1: Write failing workspace sanity test**
+- [x] **Step 1: Write failing workspace sanity test**
 
 ```ts
 // packages/shared-types/src/smoke.test.ts
@@ -41,12 +41,12 @@ describe("workspace", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify initial failure**
+- [x] **Step 2: Run test to verify initial failure**
 
 Run: `bun test packages/shared-types/src/smoke.test.ts`
 Expected: FAIL because workspace and test runner are not configured yet.
 
-- [ ] **Step 3: Create minimal workspace config and test setup**
+- [x] **Step 3: Create minimal workspace config and test setup**
 
 ```json
 {
@@ -59,12 +59,12 @@ Expected: FAIL because workspace and test runner are not configured yet.
 }
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test packages/shared-types/src/smoke.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add package.json bunfig.toml tsconfig.base.json apps packages
@@ -83,7 +83,7 @@ git commit -m "chore: bootstrap bun workspace for web and bff"
 - Create: `apps/bff/src/routes/health.ts`
 - Create: `apps/bff/src/server.test.ts`
 
-- [ ] **Step 1: Write failing BFF health route test**
+- [x] **Step 1: Write failing BFF health route test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -97,12 +97,12 @@ describe("health route", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bun test apps/bff/src/server.test.ts`
 Expected: FAIL because app/route does not exist.
 
-- [ ] **Step 3: Implement minimal Hono app and route**
+- [x] **Step 3: Implement minimal Hono app and route**
 
 ```ts
 // apps/bff/src/app.ts
@@ -112,12 +112,12 @@ export const app = new Hono();
 app.get("/health", (c) => c.json({ status: "ok" }, 200));
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/server.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web apps/bff
@@ -132,7 +132,7 @@ git commit -m "chore: scaffold react app and hono bff"
 - Create: `apps/web/src/config.ts`
 - Create: `apps/bff/src/config/env.test.ts`
 
-- [ ] **Step 1: Write failing env validation test**
+- [x] **Step 1: Write failing env validation test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -145,12 +145,12 @@ describe("parseEnv", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify failure**
+- [x] **Step 2: Run test to verify failure**
 
 Run: `bun test apps/bff/src/config/env.test.ts`
 Expected: FAIL because parser is missing.
 
-- [ ] **Step 3: Implement minimal env parser and examples**
+- [x] **Step 3: Implement minimal env parser and examples**
 
 ```ts
 export function parseEnv(input: Record<string, string | undefined>) {
@@ -160,12 +160,12 @@ export function parseEnv(input: Record<string, string | undefined>) {
 }
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/config/env.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .env.example apps/bff/src/config apps/web/src/config.ts
@@ -185,7 +185,7 @@ git commit -m "chore: add typed environment configuration"
 - Create: `packages/db/migrations/0001_initial.sql` (generated)
 - Create: `packages/db/src/schema/schema.test.ts`
 
-- [ ] **Step 1: Write failing schema test for required columns**
+- [x] **Step 1: Write failing schema test for required columns**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -197,12 +197,12 @@ describe("schema", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify failure of missing module references**
+- [x] **Step 2: Run test to verify failure of missing module references**
 
 Run: `bun test packages/db/src/schema/schema.test.ts`
 Expected: FAIL until schema files exist.
 
-- [ ] **Step 3: Implement schema including nullable team fields**
+- [x] **Step 3: Implement schema including nullable team fields**
 
 ```ts
 // include users.teamId nullable
@@ -210,17 +210,17 @@ Expected: FAIL until schema files exist.
 // include unique users.username and users.email
 ```
 
-- [ ] **Step 4: Generate and inspect initial migration**
+- [x] **Step 4: Generate and inspect initial migration**
 
 Run: `bun run --filter @refweaver/db drizzle:generate`
 Expected: migration file created for users/sessions/projects tables.
 
-- [ ] **Step 5: Run tests to verify pass**
+- [x] **Step 5: Run tests to verify pass**
 
 Run: `bun test packages/db/src/schema/schema.test.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/db
@@ -236,7 +236,7 @@ git commit -m "feat: add initial auth and project database schema"
 - Modify: `apps/bff/src/app.ts`
 - Create: `apps/bff/src/auth/signup.test.ts`
 
-- [ ] **Step 1: Write failing test for signup side effects**
+- [x] **Step 1: Write failing test for signup side effects**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -248,12 +248,12 @@ describe("signup", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify failure**
+- [x] **Step 2: Run test to verify failure**
 
 Run: `bun test apps/bff/src/auth/signup.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement minimal signup service**
+- [x] **Step 3: Implement minimal signup service**
 
 ```ts
 // create user with hashed password
@@ -263,12 +263,12 @@ Expected: FAIL.
 // create db-backed session and return cookie payload
 ```
 
-- [ ] **Step 4: Expose POST /auth/signup endpoint in Hono**
+- [x] **Step 4: Expose POST /auth/signup endpoint in Hono**
 
 Run: `bun test apps/bff/src/auth/signup.test.ts`
 Expected: PASS after wiring route.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/bff/src/auth apps/bff/src/routes/auth.ts apps/bff/src/app.ts
@@ -281,7 +281,7 @@ git commit -m "feat: implement signup with default project bootstrap"
 - Create: `README.md`
 - Create: `docs/DEVELOPMENT.md`
 
-- [ ] **Step 1: Write failing docs check test (optional simple script)**
+- [x] **Step 1: Write failing docs check test (optional simple script)**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -293,7 +293,7 @@ describe("docs", () => {
 });
 ```
 
-- [ ] **Step 2: Add docs for first-run setup and scripts**
+- [x] **Step 2: Add docs for first-run setup and scripts**
 
 Include:
 - Bun install and workspace install command
@@ -301,7 +301,7 @@ Include:
 - Run web and bff in parallel
 - Test commands
 
-- [ ] **Step 3: Verify command examples locally**
+- [x] **Step 3: Verify command examples locally**
 
 Run:
 - `bun run test`
@@ -310,7 +310,7 @@ Run:
 
 Expected: test command passes and dev servers start.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add README.md docs/DEVELOPMENT.md
@@ -321,12 +321,12 @@ git commit -m "docs: add foundation setup and runbook"
 
 ## Verification Checklist for This Plan Chunk
 
-- [ ] Workspace bootstraps with Bun and runs tests.
-- [ ] Hono BFF health endpoint is test-covered.
-- [ ] Environment contract is validated with failing/passing tests.
-- [ ] DB schema includes users, sessions, projects with nullable `team_id` placeholders.
-- [ ] Signup creates both user and default personal project.
-- [ ] Setup docs allow another engineer to run stack locally.
+- [x] Workspace bootstraps with Bun and runs tests.
+- [x] Hono BFF health endpoint is test-covered.
+- [x] Environment contract is validated with failing/passing tests.
+- [x] DB schema includes users, sessions, projects with nullable `team_id` placeholders.
+- [x] Signup creates both user and default personal project.
+- [x] Setup docs allow another engineer to run stack locally.
 
 ## Out of Scope for This Plan
 

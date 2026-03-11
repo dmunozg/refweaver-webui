@@ -20,7 +20,7 @@
 - Modify: `packages/db/package.json`
 - Test: `apps/bff/src/auth/store.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -33,12 +33,12 @@ describe("db exports", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bun test apps/bff/src/auth/store.test.ts`
 Expected: FAIL because `@refweaver/db` export is missing.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // packages/db/src/client.ts
@@ -53,12 +53,12 @@ export function createDb(databaseUrl: string) {
 }
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/auth/store.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/db/src/client.ts packages/db/src/index.ts packages/db/package.json apps/bff/src/auth/store.test.ts
@@ -72,7 +72,7 @@ git commit -m "feat: add shared drizzle runtime client exports"
 - Modify: `apps/bff/src/config/env.ts` (if stricter typing is required)
 - Test: `apps/bff/src/server.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -85,12 +85,12 @@ describe("bff bootstrap", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bun test apps/bff/src/server.test.ts`
 Expected: FAIL because startup does not yet use parsed env + DB creation path.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // apps/bff/src/index.ts
@@ -100,12 +100,12 @@ const signupStore = createSignupStore(db);
 const app = createApp({ signupStore });
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/server.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/bff/src/index.ts apps/bff/src/config/env.ts apps/bff/src/server.test.ts
@@ -120,7 +120,7 @@ git commit -m "refactor: bootstrap bff with parsed env and db dependencies"
 - Modify: `apps/bff/src/auth/store.ts`
 - Test: `apps/bff/src/auth/store.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -132,12 +132,12 @@ describe("createSignupStore", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bun test apps/bff/src/auth/store.test.ts`
 Expected: FAIL with missing behavior assertions.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 export function createSignupStore(db: Db) {
@@ -158,12 +158,12 @@ export function createSignupStore(db: Db) {
 }
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/auth/store.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/bff/src/auth/store.ts apps/bff/src/auth/store.test.ts
@@ -177,7 +177,7 @@ git commit -m "feat: implement drizzle-backed signup store"
 - Modify: `apps/bff/src/auth/store.ts` (if transaction helper lives there)
 - Test: `apps/bff/src/auth/signup.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it("rolls back all writes if project/session creation fails", async () => {
@@ -186,23 +186,23 @@ it("rolls back all writes if project/session creation fails", async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bun test apps/bff/src/auth/signup.test.ts`
 Expected: FAIL because flow is not atomic yet.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 // wrap createUser + createProject + createSession in db.transaction(...)
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/auth/signup.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/bff/src/auth/signup.ts apps/bff/src/auth/store.ts apps/bff/src/auth/signup.test.ts
@@ -219,7 +219,7 @@ git commit -m "feat: make signup writes transactional"
 - Modify: `apps/bff/src/routes/auth.ts`
 - Test: `apps/bff/src/server.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it("creates app with injected signup store dependency", async () => {
@@ -229,12 +229,12 @@ it("creates app with injected signup store dependency", async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bun test apps/bff/src/server.test.ts`
 Expected: FAIL because app is still a singleton export.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 export function createApp(deps: { signupStore: SignupStore }) {
@@ -245,12 +245,12 @@ export function createApp(deps: { signupStore: SignupStore }) {
 }
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/server.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/bff/src/app.ts apps/bff/src/index.ts apps/bff/src/routes/auth.ts apps/bff/src/server.test.ts
@@ -264,7 +264,7 @@ git commit -m "refactor: use dependency-injected bff app factory"
 - Modify: `apps/bff/src/auth/store.ts` or add `apps/bff/src/auth/errors.ts`
 - Test: `apps/bff/src/routes/auth.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it("returns 409 for duplicate username/email", async () => {
@@ -273,12 +273,12 @@ it("returns 409 for duplicate username/email", async () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bun test apps/bff/src/routes/auth.test.ts`
 Expected: FAIL because duplicate currently bubbles as 500.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```ts
 try {
@@ -289,12 +289,12 @@ try {
 }
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/routes/auth.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/bff/src/routes/auth.ts apps/bff/src/auth/store.ts apps/bff/src/auth/errors.ts apps/bff/src/routes/auth.test.ts
@@ -309,7 +309,7 @@ git commit -m "feat: map duplicate signup conflicts to 409 responses"
 - Create: `apps/bff/src/routes/auth.integration.test.ts`
 - Modify: `apps/bff/src/routes/auth.ts` (if needed for testability)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it("POST /auth/signup persists user, default project, and session", async () => {
@@ -321,18 +321,18 @@ it("POST /auth/signup persists user, default project, and session", async () => 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `bun test apps/bff/src/routes/auth.integration.test.ts`
 Expected: FAIL until all wiring is complete.
 
-- [ ] **Step 3: Write minimal implementation fixes**
+- [x] **Step 3: Write minimal implementation fixes**
 
 ```ts
 // complete remaining dependency injection, db writes, and cookie behavior
 ```
 
-- [ ] **Step 4: Re-run test to verify pass**
+- [x] **Step 4: Re-run test to verify pass**
 
 Run: `bun test apps/bff/src/routes/auth.integration.test.ts`
 Expected: PASS.
@@ -349,17 +349,17 @@ git commit -m "test: verify signup persistence and session cookie integration"
 **Files:**
 - Verify only
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 Run: `bun run test`
 Expected: all tests pass, 0 failures.
 
-- [ ] **Step 2: Run BFF dev startup smoke test**
+- [x] **Step 2: Run BFF dev startup smoke test**
 
 Run: `bun run --filter @refweaver/bff dev`
 Expected: server starts and no "Signup store not configured" error path is reachable.
 
-- [ ] **Step 3: Manual endpoint check**
+- [x] **Step 3: Manual endpoint check**
 
 Run:
 
@@ -382,12 +382,12 @@ git commit -m "chore: finalize drizzle-backed signup bootstrap verification"
 
 ## Acceptance Criteria
 
-- [ ] Signup writes to real DB tables: `users`, `projects`, `sessions`.
-- [ ] Default project is created per new user with `team_id = null`.
-- [ ] Session token is sent in HTTP-only cookie and stored hashed in DB.
-- [ ] Duplicate username/email returns `409`.
-- [ ] BFF app is bootstrapped with injected concrete store built from parsed env + DB client.
-- [ ] No runtime path still uses placeholder "Signup store not configured".
-- [ ] `bun run test` passes.
+- [x] Signup writes to real DB tables: `users`, `projects`, `sessions`.
+- [x] Default project is created per new user with `team_id = null`.
+- [x] Session token is sent in HTTP-only cookie and stored hashed in DB.
+- [x] Duplicate username/email returns `409`.
+- [x] BFF app is bootstrapped with injected concrete store built from parsed env + DB client.
+- [x] No runtime path still uses placeholder "Signup store not configured".
+- [x] `bun run test` passes.
 
 Plan complete and saved to `docs/superpowers/plans/2026-03-10-drizzle-auth-store-bootstrap.md`. Ready to execute?
