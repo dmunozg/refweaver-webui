@@ -1,5 +1,6 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { verifyPassword } from "./password";
+import { hashSessionToken } from "./session";
 
 type LoginInput = {
   identifier: string;
@@ -23,10 +24,6 @@ type LoginResult = {
   sessionExpiresAt: Date;
 };
 
-function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
-
 export async function login(input: LoginInput, store: LoginStore): Promise<LoginResult> {
   return store.withTransaction(async () => {
     const user = await store.findUserByIdentifier(input.identifier);
@@ -44,7 +41,7 @@ export async function login(input: LoginInput, store: LoginStore): Promise<Login
 
     const session = await store.createSession({
       userId: user.id,
-      sessionTokenHash: hashToken(sessionToken),
+      sessionTokenHash: hashSessionToken(sessionToken),
       expiresAt: sessionExpiresAt
     });
 

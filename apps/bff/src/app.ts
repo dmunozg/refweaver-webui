@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import type { SignupStore } from "./auth/signup";
+import type { AuthStore } from "./auth/store";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerHealthRoute } from "./routes/health";
 
 type AppDeps = {
-  signupStore: SignupStore;
+  signupStore: AuthStore;
 };
 
 export function createApp(deps: AppDeps) {

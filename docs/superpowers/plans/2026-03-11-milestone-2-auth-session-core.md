@@ -62,10 +62,10 @@
 - Test: `apps/bff/src/routes/auth.test.ts`
 - Test: `apps/bff/src/routes/auth.integration.test.ts`
 
-- [ ] Step 1: Write failing route tests for login/logout/me.
-- [ ] Step 2: Run tests to verify failure.
-- [ ] Step 3: Implement handlers.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Write failing route tests for login/logout/me.
+- [x] Step 2: Run tests to verify failure.
+- [x] Step 3: Implement handlers.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ### Task 5: Add protected-route middleware

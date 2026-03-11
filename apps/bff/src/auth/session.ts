@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export function getSessionTokenFromCookieHeader(cookieHeader: string | null | undefined): string | null {
   if (!cookieHeader) {
     return null;
@@ -11,4 +13,8 @@ export function getSessionTokenFromCookieHeader(cookieHeader: string | null | un
   }
 
   return null;
+}
+
+export function hashSessionToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }

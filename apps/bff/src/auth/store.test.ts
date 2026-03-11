@@ -96,6 +96,43 @@ describe("createSignupStore", () => {
     expect(user?.id).toBe("user-1");
   });
 
+  it("finds user by id", async () => {
+    const fakeDb = {
+      async transaction<T>(fn: (tx: typeof fakeDb) => Promise<T>) {
+        return fn(fakeDb);
+      },
+      insert() {
+        throw new Error("not used");
+      },
+      select() {
+        return {
+          from(table: unknown) {
+            return {
+              where() {
+                return {
+                  async limit() {
+                    if (table === users) {
+                      return [{ id: "user-1", username: "ada" }];
+                    }
+
+                    return [];
+                  }
+                };
+              }
+            };
+          }
+        };
+      },
+      delete() {
+        throw new Error("not used");
+      }
+    };
+
+    const store = createSignupStore(fakeDb as never);
+    const user = await store.findUserById("user-1");
+    expect(user?.id).toBe("user-1");
+  });
+
   it("finds and deletes session by token hash", async () => {
     let deleteCount = 0;
 

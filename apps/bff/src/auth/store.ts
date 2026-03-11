@@ -23,6 +23,7 @@ type InsertableDb = {
 
 export type AuthStore = SignupStore & {
   findUserByIdentifier(identifier: string): Promise<Record<string, unknown> | null>;
+  findUserById(userId: string): Promise<Record<string, unknown> | null>;
   findSessionByTokenHash(tokenHash: string): Promise<Record<string, unknown> | null>;
   deleteSessionByTokenHash(tokenHash: string): Promise<void>;
 };
@@ -61,6 +62,10 @@ export function createSignupStore(db: InsertableDb): AuthStore {
         .where(or(eq(users.username, identifier), eq(users.email, identifier)))
         .limit(1);
 
+      return rows[0] ?? null;
+    },
+    async findUserById(userId) {
+      const rows = await activeDb.select().from(users).where(eq(users.id, userId)).limit(1);
       return rows[0] ?? null;
     },
     async findSessionByTokenHash(tokenHash) {

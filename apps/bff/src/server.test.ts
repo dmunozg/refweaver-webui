@@ -16,6 +16,18 @@ describe("health route", () => {
         },
         async createSession() {
           return { id: "session-1" };
+        },
+        async findUserByIdentifier() {
+          return null;
+        },
+        async findUserById() {
+          return null;
+        },
+        async findSessionByTokenHash() {
+          return null;
+        },
+        async deleteSessionByTokenHash() {
+          return;
         }
       }
     });
