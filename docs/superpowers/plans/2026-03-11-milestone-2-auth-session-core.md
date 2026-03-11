@@ -32,10 +32,10 @@
 - Modify: `apps/bff/src/auth/password.ts` (reuse `verifyPassword`)
 - Test: `apps/bff/src/auth/login.test.ts`
 
-- [ ] Step 1: Write failing tests for valid and invalid credentials.
-- [ ] Step 2: Run test to verify failure.
-- [ ] Step 3: Implement minimal login orchestration.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Write failing tests for valid and invalid credentials.
+- [x] Step 2: Run test to verify failure.
+- [x] Step 3: Implement minimal login orchestration.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ### Task 3: Add logout + session parsing helpers
