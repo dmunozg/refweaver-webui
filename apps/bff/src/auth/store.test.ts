@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDb } from "@refweaver/db";
+import { createDb, sessions, users } from "@refweaver/db";
 import { createSignupStore } from "./store";
 
 describe("db exports", () => {
@@ -57,5 +57,91 @@ describe("createSignupStore", () => {
     expect(result.project.id).toBe("id-2");
     expect(result.session.id).toBe("id-3");
     expect(inserted).toHaveLength(3);
+  });
+
+  it("finds user by identifier", async () => {
+    const fakeDb = {
+      async transaction<T>(fn: (tx: typeof fakeDb) => Promise<T>) {
+        return fn(fakeDb);
+      },
+      insert() {
+        throw new Error("not used");
+      },
+      select() {
+        return {
+          from(table: unknown) {
+            return {
+              where() {
+                return {
+                  async limit() {
+                    if (table === users) {
+                      return [{ id: "user-1", username: "ada" }];
+                    }
+
+                    return [];
+                  }
+                };
+              }
+            };
+          }
+        };
+      },
+      delete() {
+        throw new Error("not used");
+      }
+    };
+
+    const store = createSignupStore(fakeDb as never);
+    const user = await store.findUserByIdentifier("ada");
+    expect(user?.id).toBe("user-1");
+  });
+
+  it("finds and deletes session by token hash", async () => {
+    let deleteCount = 0;
+
+    const fakeDb = {
+      async transaction<T>(fn: (tx: typeof fakeDb) => Promise<T>) {
+        return fn(fakeDb);
+      },
+      insert() {
+        throw new Error("not used");
+      },
+      select() {
+        return {
+          from(table: unknown) {
+            return {
+              where() {
+                return {
+                  async limit() {
+                    if (table === sessions) {
+                      return [{ id: "session-1", userId: "user-1" }];
+                    }
+
+                    return [];
+                  }
+                };
+              }
+            };
+          }
+        };
+      },
+      delete(table: unknown) {
+        return {
+          async where() {
+            if (table === sessions) {
+              deleteCount += 1;
+            }
+            return [];
+          }
+        };
+      }
+    };
+
+    const store = createSignupStore(fakeDb as never);
+    const session = await store.findSessionByTokenHash("hashed-token");
+    await store.deleteSessionByTokenHash("hashed-token");
+
+    expect(session?.id).toBe("session-1");
+    expect(deleteCount).toBe(1);
   });
 });

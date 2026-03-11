@@ -23,7 +23,7 @@
 - [x] Step 2: Run test to verify failure.
 - [x] Step 3: Implement minimal Drizzle queries.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ### Task 2: Add login use-case
 
