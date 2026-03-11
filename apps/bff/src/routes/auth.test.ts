@@ -35,7 +35,7 @@ describe("auth routes", () => {
         };
       },
       async findSessionByTokenHash() {
-        return { id: "session-1", userId: "user-1" };
+        return { id: "session-1", userId: "user-1", expiresAt: new Date(Date.now() + 60_000) };
       },
       async deleteSessionByTokenHash() {
         return;
@@ -124,5 +124,50 @@ describe("auth routes", () => {
 
     expect(response.status).toBe(204);
     expect(response.headers.get("set-cookie")).toContain("rw_session=");
+  });
+
+  it("returns 401 from /auth/me for expired session", async () => {
+    const app = createApp({
+      signupStore: {
+        ...buildStore(),
+        async findSessionByTokenHash() {
+          return {
+            id: "session-1",
+            userId: "user-1",
+            expiresAt: new Date(Date.now() - 60_000)
+          };
+        }
+      }
+    });
+
+    const response = await app.request("/auth/me", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("returns 422 for malformed signup json", async () => {
+    const app = createApp({ signupStore: buildStore() });
+
+    const response = await app.request("/auth/signup", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{"
+    });
+
+    expect(response.status).toBe(422);
+  });
+
+  it("returns 422 for malformed login json", async () => {
+    const app = createApp({ signupStore: buildStore() });
+
+    const response = await app.request("/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{"
+    });
+
+    expect(response.status).toBe(422);
   });
 });

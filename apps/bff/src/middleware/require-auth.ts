@@ -1,5 +1,9 @@
 import type { Context, Next } from "hono";
-import { getSessionTokenFromCookieHeader, hashSessionToken } from "../auth/session";
+import {
+  getSessionTokenFromCookieHeader,
+  hashSessionToken,
+  isSessionExpired
+} from "../auth/session";
 import type { AuthStore } from "../auth/store";
 
 export function requireAuth(store: AuthStore) {
@@ -10,7 +14,7 @@ export function requireAuth(store: AuthStore) {
     }
 
     const session = await store.findSessionByTokenHash(hashSessionToken(token));
-    if (!session || typeof session.userId !== "string") {
+    if (!session || typeof session.userId !== "string" || isSessionExpired(session.expiresAt)) {
       return c.json({ error: "unauthorized" }, 401);
     }
 

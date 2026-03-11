@@ -18,3 +18,16 @@ export function getSessionTokenFromCookieHeader(cookieHeader: string | null | un
 export function hashSessionToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
+
+export function isSessionExpired(expiresAt: unknown, now = new Date()): boolean {
+  if (!expiresAt) {
+    return true;
+  }
+
+  const value = expiresAt instanceof Date ? expiresAt : new Date(String(expiresAt));
+  if (Number.isNaN(value.getTime())) {
+    return true;
+  }
+
+  return value.getTime() <= now.getTime();
+}

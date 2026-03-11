@@ -27,7 +27,7 @@
 - [x] Step 3: Refactor `withTransaction` to provide isolated transaction-scoped store instance.
 - [x] Step 4: Update signup/login flows to consume scoped store callback.
 - [x] Step 5: Re-run tests to verify pass.
-- [ ] Step 6: Commit.
+- [x] Step 6: Commit.
 
 ## Chunk B: Session Validity Enforcement (Important)
 
@@ -40,10 +40,10 @@
 - Test: `apps/bff/src/routes/protected.test.ts`
 - Test: `apps/bff/src/routes/auth.test.ts`
 
-- [ ] Step 1: Write failing tests for expired session -> `401`.
-- [ ] Step 2: Run tests to verify failure.
-- [ ] Step 3: Implement expiration checks (`expiresAt > now`) and optional cleanup.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Write failing tests for expired session -> `401`.
+- [x] Step 2: Run tests to verify failure.
+- [x] Step 3: Implement expiration checks (`expiresAt > now`) and optional cleanup.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ## Chunk C: JSON Parse Hardening (Important)
@@ -54,10 +54,10 @@
 - Modify: `apps/bff/src/routes/auth.ts`
 - Test: `apps/bff/src/routes/auth.test.ts`
 
-- [ ] Step 1: Write failing tests for malformed JSON on signup/login.
-- [ ] Step 2: Run tests to verify failure.
-- [ ] Step 3: Add guarded parse handling returning deterministic client error.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Write failing tests for malformed JSON on signup/login.
+- [x] Step 2: Run tests to verify failure.
+- [x] Step 3: Add guarded parse handling returning deterministic client error.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ## Chunk D: Integration Coverage Completion (Important)
@@ -67,10 +67,10 @@
 **Files:**
 - Modify: `apps/bff/src/routes/auth.integration.test.ts`
 
-- [ ] Step 1: Write failing integration tests for login success/failure, me authorized/unauthorized/expired, logout invalidation.
-- [ ] Step 2: Run tests to verify failure.
-- [ ] Step 3: Implement any minimal code fixes required by integration behavior.
-- [ ] Step 4: Re-run tests to verify pass.
+- [x] Step 1: Write failing integration tests for login success/failure, me authorized/unauthorized/expired, logout invalidation.
+- [x] Step 2: Run tests to verify failure.
+- [x] Step 3: Implement any minimal code fixes required by integration behavior.
+- [x] Step 4: Re-run tests to verify pass.
 - [ ] Step 5: Commit.
 
 ## Chunk E: Type Hardening (Minor)

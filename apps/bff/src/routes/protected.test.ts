@@ -22,7 +22,7 @@ function buildStore() {
       return { id: "user-1", username: "ada", email: "ada@example.com", name: "Ada", teamId: null };
     },
     async findSessionByTokenHash() {
-      return { id: "session-1", userId: "user-1" };
+      return { id: "session-1", userId: "user-1", expiresAt: new Date(Date.now() + 60_000) };
     },
     async deleteSessionByTokenHash() {
       return;
@@ -43,5 +43,26 @@ describe("protected routes", () => {
       headers: { cookie: "rw_session=known-token" }
     });
     expect(response.status).toBe(200);
+  });
+
+  it("returns 401 when session is expired", async () => {
+    const app = createApp({
+      signupStore: {
+        ...buildStore(),
+        async findSessionByTokenHash() {
+          return {
+            id: "session-1",
+            userId: "user-1",
+            expiresAt: new Date(Date.now() - 60_000)
+          };
+        }
+      }
+    });
+
+    const response = await app.request("/protected/ping", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+
+    expect(response.status).toBe(401);
   });
 });

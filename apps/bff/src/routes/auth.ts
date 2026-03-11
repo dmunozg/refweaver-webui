@@ -3,7 +3,11 @@ import { deleteCookie, setCookie } from "hono/cookie";
 import { isUniqueViolation } from "../auth/errors";
 import { login } from "../auth/login";
 import { logout } from "../auth/logout";
-import { getSessionTokenFromCookieHeader, hashSessionToken } from "../auth/session";
+import {
+  getSessionTokenFromCookieHeader,
+  hashSessionToken,
+  isSessionExpired
+} from "../auth/session";
 import { signup } from "../auth/signup";
 import type { AuthStore } from "../auth/store";
 
@@ -30,7 +34,12 @@ function isSignupBody(input: unknown): input is SignupBody {
 
 export function registerAuthRoutes(app: Hono, store: AuthStore): void {
   app.post("/auth/signup", async (c) => {
-    const body = await c.req.json();
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid_signup_payload" }, 422);
+    }
 
     if (!isSignupBody(body)) {
       return c.json({ error: "invalid_signup_payload" }, 422);
@@ -65,7 +74,12 @@ export function registerAuthRoutes(app: Hono, store: AuthStore): void {
   });
 
   app.post("/auth/login", async (c) => {
-    const body = await c.req.json();
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "invalid_login_payload" }, 422);
+    }
     if (!body || typeof body !== "object") {
       return c.json({ error: "invalid_login_payload" }, 422);
     }
@@ -106,7 +120,7 @@ export function registerAuthRoutes(app: Hono, store: AuthStore): void {
 
     const tokenHash = hashSessionToken(token);
     const session = await store.findSessionByTokenHash(tokenHash);
-    if (!session || typeof session.userId !== "string") {
+    if (!session || typeof session.userId !== "string" || isSessionExpired(session.expiresAt)) {
       return c.json({ error: "unauthorized" }, 401);
     }
 
