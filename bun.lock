@@ -13,6 +13,7 @@
       "name": "@refweaver/bff",
       "dependencies": {
         "@refweaver/db": "workspace:*",
+        "drizzle-orm": "^0.44.5",
         "hono": "^4.7.4",
       },
     },
