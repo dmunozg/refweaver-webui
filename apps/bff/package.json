@@ -1,0 +1,13 @@
+{
+  "name": "@refweaver/bff",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@refweaver/db": "workspace:*",
+    "hono": "^4.7.4"
+  }
+}
