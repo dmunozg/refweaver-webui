@@ -5,8 +5,8 @@ describe("health route", () => {
   it("returns ok", async () => {
     const app = createApp({
       signupStore: {
-        async withTransaction<T>(fn: () => Promise<T>) {
-          return fn();
+        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
+          return fn(this);
         },
         async createUser() {
           return { id: "user-1" };

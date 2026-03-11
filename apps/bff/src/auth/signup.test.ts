@@ -10,8 +10,8 @@ describe("signup", () => {
     };
 
     const db = {
-      async withTransaction<T>(fn: () => Promise<T>) {
-        return fn();
+      async withTransaction<T>(fn: (store: typeof db) => Promise<T>) {
+        return fn(db);
       },
       createUser: async () => {
         created.user = { id: "user-1" };
@@ -53,9 +53,9 @@ describe("signup", () => {
     const writes: string[] = [];
 
     const store = {
-      async withTransaction<T>(fn: () => Promise<T>) {
+      async withTransaction<T>(fn: (txStore: typeof store) => Promise<T>) {
         transactionRuns += 1;
-        return fn();
+        return fn(store);
       },
       async createUser() {
         writes.push("user");

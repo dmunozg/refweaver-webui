@@ -4,8 +4,8 @@ import { createApp } from "../app";
 describe("auth routes", () => {
   function buildStore() {
     return {
-      async withTransaction<T>(fn: () => Promise<T>) {
-        return fn();
+      async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
+        return fn(this);
       },
       async createUser() {
         return { id: "user-1" };
@@ -48,8 +48,8 @@ describe("auth routes", () => {
 
     const app = createApp({
       signupStore: {
-        async withTransaction<T>(fn: () => Promise<T>) {
-          return fn();
+        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
+          return fn(this);
         },
         async createUser() {
           throw duplicateError;

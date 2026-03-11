@@ -30,7 +30,7 @@ type CreateSessionInput = {
 };
 
 export type SignupStore = {
-  withTransaction<T>(fn: () => Promise<T>): Promise<T>;
+  withTransaction<T>(fn: (store: SignupStore) => Promise<T>): Promise<T>;
   createUser(input: CreateUserInput): Promise<{ id: string }>;
   createProject(input: CreateProjectInput): Promise<{ id: string }>;
   createSession(input: CreateSessionInput): Promise<{ id: string }>;
@@ -45,9 +45,9 @@ export type SignupResult = {
 };
 
 export async function signup(input: SignupInput, store: SignupStore): Promise<SignupResult> {
-  return store.withTransaction(async () => {
+  return store.withTransaction(async (txStore) => {
     const passwordHash = await hashPassword(input.password);
-    const user = await store.createUser({
+    const user = await txStore.createUser({
       username: input.username,
       email: input.email,
       name: input.name,
@@ -55,7 +55,7 @@ export async function signup(input: SignupInput, store: SignupStore): Promise<Si
       teamId: null
     });
 
-    const project = await store.createProject({
+    const project = await txStore.createProject({
       name: "My First Project",
       ownerUserId: user.id,
       teamId: null
@@ -64,7 +64,7 @@ export async function signup(input: SignupInput, store: SignupStore): Promise<Si
     const sessionToken = randomUUID();
     const sessionExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
 
-    const session = await store.createSession({
+    const session = await txStore.createSession({
       userId: user.id,
       sessionTokenHash: hashSessionToken(sessionToken),
       expiresAt: sessionExpiresAt

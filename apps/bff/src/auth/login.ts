@@ -8,7 +8,7 @@ type LoginInput = {
 };
 
 type LoginStore = {
-  withTransaction<T>(fn: () => Promise<T>): Promise<T>;
+  withTransaction<T>(fn: (store: LoginStore) => Promise<T>): Promise<T>;
   findUserByIdentifier(identifier: string): Promise<{ id: string; passwordHash: string } | null>;
   createSession(input: {
     userId: string;
@@ -25,8 +25,8 @@ type LoginResult = {
 };
 
 export async function login(input: LoginInput, store: LoginStore): Promise<LoginResult> {
-  return store.withTransaction(async () => {
-    const user = await store.findUserByIdentifier(input.identifier);
+  return store.withTransaction(async (txStore) => {
+    const user = await txStore.findUserByIdentifier(input.identifier);
     if (!user) {
       throw new Error("invalid_credentials");
     }
@@ -39,7 +39,7 @@ export async function login(input: LoginInput, store: LoginStore): Promise<Login
     const sessionToken = randomUUID();
     const sessionExpiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 7);
 
-    const session = await store.createSession({
+    const session = await txStore.createSession({
       userId: user.id,
       sessionTokenHash: hashSessionToken(sessionToken),
       expiresAt: sessionExpiresAt

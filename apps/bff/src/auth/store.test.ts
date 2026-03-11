@@ -31,20 +31,20 @@ describe("createSignupStore", () => {
     };
 
     const store = createSignupStore(fakeDb as never);
-    const result = await store.withTransaction(async () => {
-      const user = await store.createUser({
+    const result = await store.withTransaction(async (txStore) => {
+      const user = await txStore.createUser({
         username: "ada",
         email: "ada@example.com",
         name: "Ada",
         passwordHash: "hash",
         teamId: null
       });
-      const project = await store.createProject({
+      const project = await txStore.createProject({
         name: "My First Project",
         ownerUserId: user.id,
         teamId: null
       });
-      const session = await store.createSession({
+      const session = await txStore.createSession({
         userId: user.id,
         sessionTokenHash: "token-hash",
         expiresAt: new Date()
@@ -180,5 +180,79 @@ describe("createSignupStore", () => {
 
     expect(session?.id).toBe("session-1");
     expect(deleteCount).toBe(1);
+  });
+
+  it("uses transaction-scoped store instance", async () => {
+    const calls: string[] = [];
+
+    const txDb = {
+      async transaction<T>(fn: (tx: typeof txDb) => Promise<T>) {
+        return fn(txDb);
+      },
+      insert() {
+        calls.push("tx-insert");
+        return {
+          values() {
+            return {
+              async returning() {
+                return [{ id: "tx-user" }];
+              }
+            };
+          }
+        };
+      },
+      select() {
+        return {
+          from() {
+            return { where() { return { async limit() { return []; } }; } };
+          }
+        };
+      },
+      delete() {
+        return { async where() { return []; } };
+      }
+    };
+
+    const baseDb = {
+      async transaction<T>(fn: (tx: typeof txDb) => Promise<T>) {
+        return fn(txDb);
+      },
+      insert() {
+        calls.push("base-insert");
+        return {
+          values() {
+            return {
+              async returning() {
+                return [{ id: "base-user" }];
+              }
+            };
+          }
+        };
+      },
+      select() {
+        return {
+          from() {
+            return { where() { return { async limit() { return []; } }; } };
+          }
+        };
+      },
+      delete() {
+        return { async where() { return []; } };
+      }
+    };
+
+    const store = createSignupStore(baseDb as never);
+
+    await store.withTransaction(async (txStore) => {
+      await txStore.createUser({
+        username: "tx",
+        email: "tx@example.com",
+        name: "Tx",
+        passwordHash: "hash",
+        teamId: null
+      });
+    });
+
+    expect(calls).toEqual(["tx-insert"]);
   });
 });

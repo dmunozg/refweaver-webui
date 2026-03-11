@@ -4,8 +4,8 @@ import { login } from "./login";
 describe("login", () => {
   it("creates a session for valid credentials", async () => {
     const store = {
-      async withTransaction<T>(fn: () => Promise<T>) {
-        return fn();
+      async withTransaction<T>(fn: (txStore: typeof store) => Promise<T>) {
+        return fn(store);
       },
       async findUserByIdentifier() {
         return {
@@ -26,8 +26,8 @@ describe("login", () => {
 
   it("throws for invalid credentials", async () => {
     const store = {
-      async withTransaction<T>(fn: () => Promise<T>) {
-        return fn();
+      async withTransaction<T>(fn: (txStore: typeof store) => Promise<T>) {
+        return fn(store);
       },
       async findUserByIdentifier() {
         return {

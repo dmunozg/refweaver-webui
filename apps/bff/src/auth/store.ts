@@ -28,35 +28,25 @@ export type AuthStore = SignupStore & {
   deleteSessionByTokenHash(tokenHash: string): Promise<void>;
 };
 
-export function createSignupStore(db: InsertableDb): AuthStore {
-  let activeDb = db;
-
+function createStoreForDb(db: InsertableDb): AuthStore {
   return {
-    async withTransaction<T>(fn: () => Promise<T>) {
-      return db.transaction(async (tx) => {
-        const previousDb = activeDb;
-        activeDb = tx;
-        try {
-          return await fn();
-        } finally {
-          activeDb = previousDb;
-        }
-      });
+    async withTransaction<T>(fn: (store: AuthStore) => Promise<T>) {
+      return db.transaction(async (tx) => fn(createStoreForDb(tx as InsertableDb)));
     },
     async createUser(input) {
-      const [row] = await activeDb.insert(users).values(input).returning({ id: users.id });
+      const [row] = await db.insert(users).values(input).returning({ id: users.id });
       return row;
     },
     async createProject(input) {
-      const [row] = await activeDb.insert(projects).values(input).returning({ id: projects.id });
+      const [row] = await db.insert(projects).values(input).returning({ id: projects.id });
       return row;
     },
     async createSession(input) {
-      const [row] = await activeDb.insert(sessions).values(input).returning({ id: sessions.id });
+      const [row] = await db.insert(sessions).values(input).returning({ id: sessions.id });
       return row;
     },
     async findUserByIdentifier(identifier) {
-      const rows = await activeDb
+      const rows = await db
         .select()
         .from(users)
         .where(or(eq(users.username, identifier), eq(users.email, identifier)))
@@ -65,11 +55,11 @@ export function createSignupStore(db: InsertableDb): AuthStore {
       return rows[0] ?? null;
     },
     async findUserById(userId) {
-      const rows = await activeDb.select().from(users).where(eq(users.id, userId)).limit(1);
+      const rows = await db.select().from(users).where(eq(users.id, userId)).limit(1);
       return rows[0] ?? null;
     },
     async findSessionByTokenHash(tokenHash) {
-      const rows = await activeDb
+      const rows = await db
         .select()
         .from(sessions)
         .where(eq(sessions.sessionTokenHash, tokenHash))
@@ -78,7 +68,11 @@ export function createSignupStore(db: InsertableDb): AuthStore {
       return rows[0] ?? null;
     },
     async deleteSessionByTokenHash(tokenHash) {
-      await activeDb.delete(sessions).where(eq(sessions.sessionTokenHash, tokenHash));
+      await db.delete(sessions).where(eq(sessions.sessionTokenHash, tokenHash));
     }
   };
+}
+
+export function createSignupStore(db: InsertableDb): AuthStore {
+  return createStoreForDb(db);
 }
