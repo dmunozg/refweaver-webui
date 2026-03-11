@@ -79,7 +79,7 @@
 - [x] Step 2: Run tests to verify failure.
 - [x] Step 3: Implement middleware.
 - [x] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 5: Commit.
 
 ## Chunk 3: Frontend Protected Shell Bootstrap
 
