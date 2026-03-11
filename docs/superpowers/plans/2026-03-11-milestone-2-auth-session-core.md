@@ -90,7 +90,8 @@
 - Create: `apps/web/src/auth/types.ts`
 - Create: `apps/web/src/auth/use-auth.ts`
 - Modify: `apps/web/src/App.tsx`
-- Modify: `apps/web/src/main.tsx`
+
+**Scope note:** Milestone 2 "protected app shell" is the minimum authenticated gate and signed-out login gate in `App.tsx`. Rich project navigation and default-project workspace shell are deferred to Milestone 3.
 
 - [x] Step 1: Write failing test for auth bootstrap states.
 - [x] Step 2: Run test to verify failure.

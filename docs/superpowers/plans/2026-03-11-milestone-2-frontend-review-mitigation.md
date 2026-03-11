@@ -35,8 +35,8 @@
 - Modify: `docs/superpowers/plans/2026-03-11-milestone-2-auth-session-core.md`
 - Modify: `docs/superpowers/specs/2026-03-10-refweaver-webui-roadmap.md` (if shell scope text needs clarification)
 
-- [ ] Step 1: Update Task 6 file list to match actual architecture or add explicit `main.tsx` integration if required.
-- [ ] Step 2: Clarify what counts as Milestone 2 “protected app shell” minimal acceptance.
+- [x] Step 1: Update Task 6 file list to match actual architecture or add explicit `main.tsx` integration if required.
+- [x] Step 2: Clarify what counts as Milestone 2 “protected app shell” minimal acceptance.
 - [ ] Step 3: Commit.
 
 ### Task 2: Harden auth API error semantics

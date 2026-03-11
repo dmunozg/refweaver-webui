@@ -25,6 +25,8 @@
 
 **Objective:** Ship secure account access and protected app shell.
 
+For Milestone 2, "protected app shell" means authenticated-vs-signed-out gating with basic session-aware app entry. Full project workspace composition remains Milestone 3+.
+
 - Register/login/logout endpoints.
 - Password hashing and credential validation.
 - DB-backed sessions with secure HTTP-only cookie handling.
