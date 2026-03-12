@@ -5,8 +5,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-refweaver_webui}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-refweaver_webui}"]
       interval: 5s
@@ -33,6 +31,7 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:-replace-with-random-secret}
       REFWEAVER_API_BASE_URL: ${REFWEAVER_API_BASE_URL:?REFWEAVER_API_BASE_URL is required}
       REFWEAVER_API_KEY: ${REFWEAVER_API_KEY:-}
+      BFF_ALLOWED_ORIGINS: ${BFF_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
     ports:
       - "${BFF_PORT:-3001}:${BFF_PORT:-3001}"
     volumes:
@@ -44,6 +43,8 @@ services:
   web:
     image: docker.io/oven/bun:1.2.8
     working_dir: /workspace
+    env_file:
+      - .env
     command:
       [
         "sh",

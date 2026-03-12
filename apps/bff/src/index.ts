@@ -8,7 +8,10 @@ const env = parseEnv(process.env);
 const port = Number(process.env.PORT ?? 3001);
 const { db } = createDb(env.DATABASE_URL);
 const signupStore = createSignupStore(db);
-const app = createApp({ signupStore });
+const app = createApp({
+  signupStore,
+  allowedOrigins: env.BFF_ALLOWED_ORIGINS
+});
 
 serve({
   port,
