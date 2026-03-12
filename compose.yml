@@ -1,0 +1,61 @@
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-refweaver_webui}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-refweaver_webui}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  bff:
+    image: docker.io/oven/bun:1.2.8
+    working_dir: /workspace
+    command:
+      [
+        "sh",
+        "-lc",
+        "bun install && bun run --filter @refweaver/bff dev"
+      ]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: ${BFF_PORT:-3001}
+      DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@db:5432/refweaver_webui}
+      SESSION_SECRET: ${SESSION_SECRET:-replace-with-random-secret}
+      REFWEAVER_API_BASE_URL: ${REFWEAVER_API_BASE_URL:?REFWEAVER_API_BASE_URL is required}
+      REFWEAVER_API_KEY: ${REFWEAVER_API_KEY:-}
+    ports:
+      - "${BFF_PORT:-3001}:${BFF_PORT:-3001}"
+    volumes:
+      - ./:/workspace:Z
+
+  web:
+    image: docker.io/oven/bun:1.2.8
+    working_dir: /workspace
+    command:
+      [
+        "sh",
+        "-lc",
+        "bun install && bun run --filter @refweaver/web dev --host 0.0.0.0 --port ${WEB_PORT:-5173}"
+      ]
+    depends_on:
+      - bff
+    environment:
+      VITE_BFF_BASE_URL: ${VITE_BFF_BASE_URL:-http://localhost:3001}
+      WEB_PORT: ${WEB_PORT:-5173}
+    ports:
+      - "${WEB_PORT:-5173}:${WEB_PORT:-5173}"
+    volumes:
+      - ./:/workspace:Z
+
+volumes:
+  postgres_data:

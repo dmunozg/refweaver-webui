@@ -63,12 +63,12 @@ git commit -m "chore: expand environment contract for dev compose"
 **Files:**
 - Create: `compose.yml`
 
-- [ ] **Step 1: Write failing compose config check**
+- [x] **Step 1: Write failing compose config check**
 
 Run: `podman compose -f compose.yml config`
 Expected: FAIL because file does not exist.
 
-- [ ] **Step 2: Create compose services and wiring**
+- [x] **Step 2: Create compose services and wiring**
 
 Required service behavior:
 - `db`
@@ -94,12 +94,12 @@ Constraints:
 - Rootless/podman-friendly (no host network mode, no privileged settings).
 - No Docker-only features.
 
-- [ ] **Step 3: Validate compose structure**
+- [x] **Step 3: Validate compose structure**
 
 Run: `podman compose -f compose.yml config`
 Expected: PASS when required vars are set in environment/.env.
 
-- [ ] **Step 4: Validate required var enforcement**
+- [x] **Step 4: Validate required var enforcement**
 
 Run: `env -u REFWEAVER_API_BASE_URL podman compose -f compose.yml config`
 Expected: FAIL with message that `REFWEAVER_API_BASE_URL` is required.
