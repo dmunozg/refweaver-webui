@@ -17,6 +17,9 @@
    - `SESSION_SECRET`
    - `REFWEAVER_API_BASE_URL` (required)
 
+Optional host exposure controls:
+- `WEB_BIND_ADDRESS` (defaults to `127.0.0.1` to keep web port loopback-only)
+
 Start the local development stack:
 
 ```bash
