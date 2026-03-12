@@ -50,10 +50,10 @@
 - Create: `apps/bff/src/refweaver/client.ts`
 - Create: `apps/bff/src/refweaver/client.test.ts`
 
-- [ ] **Step 1: Write failing tests for success/error mapping per endpoint**
-- [ ] **Step 2: Run tests to confirm failure**
-- [ ] **Step 3: Implement typed adapter and error mapping**
-- [ ] **Step 4: Re-run tests to verify pass**
+- [x] **Step 1: Write failing tests for success/error mapping per endpoint**
+- [x] **Step 2: Run tests to confirm failure**
+- [x] **Step 3: Implement typed adapter and error mapping**
+- [x] **Step 4: Re-run tests to verify pass**
 - [ ] **Step 5: Commit**
 
 ### Task 4: Run domain store and service
