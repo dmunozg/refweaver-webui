@@ -90,13 +90,14 @@
 - Create: `apps/web/src/auth/types.ts`
 - Create: `apps/web/src/auth/use-auth.ts`
 - Modify: `apps/web/src/App.tsx`
-- Modify: `apps/web/src/main.tsx`
 
-- [ ] Step 1: Write failing test for auth bootstrap states.
-- [ ] Step 2: Run test to verify failure.
-- [ ] Step 3: Implement minimal `/auth/me` bootstrap flow.
-- [ ] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+**Scope note:** Milestone 2 "protected app shell" is the minimum authenticated gate and signed-out login gate in `App.tsx`. Rich project navigation and default-project workspace shell are deferred to Milestone 3.
+
+- [x] Step 1: Write failing test for auth bootstrap states.
+- [x] Step 2: Run test to verify failure.
+- [x] Step 3: Implement minimal `/auth/me` bootstrap flow.
+- [x] Step 4: Re-run tests to verify pass.
+- [x] Step 5: Commit.
 
 ### Task 7: Add login/logout UI
 
@@ -105,17 +106,17 @@
 - Modify: `apps/web/src/App.tsx`
 - Test: `apps/web/src/auth/LoginForm.test.tsx`
 
-- [ ] Step 1: Write failing test for login success/error rendering.
-- [ ] Step 2: Run test to verify failure.
-- [ ] Step 3: Implement minimal login form and logout action.
-- [ ] Step 4: Re-run tests to verify pass.
-- [ ] Step 5: Commit.
+- [x] Step 1: Write failing test for login success/error rendering.
+- [x] Step 2: Run test to verify failure.
+- [x] Step 3: Implement minimal login form and logout action.
+- [x] Step 4: Re-run tests to verify pass.
+- [x] Step 5: Commit.
 
 ## Chunk 4: Verification and Completion
 
 ### Task 8: Milestone 2 verification gate
 
-- [ ] Step 1: Run `bun run test`.
-- [ ] Step 2: Run BFF dev startup smoke test with required env vars.
-- [ ] Step 3: Manually verify signup/login/me/logout/protected flow.
-- [ ] Step 4: Commit remaining verification/docs updates.
+- [x] Step 1: Run `bun run test`.
+- [x] Step 2: Run BFF dev startup smoke test with required env vars.
+- [x] Step 3: Manually verify signup/login/me/logout/protected flow.
+- [x] Step 4: Commit remaining verification/docs updates.
