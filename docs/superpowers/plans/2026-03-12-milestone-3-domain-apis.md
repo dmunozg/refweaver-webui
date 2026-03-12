@@ -54,7 +54,7 @@
 - [x] **Step 2: Run tests to confirm failure**
 - [x] **Step 3: Implement typed adapter and error mapping**
 - [x] **Step 4: Re-run tests to verify pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ### Task 4: Run domain store and service
 
