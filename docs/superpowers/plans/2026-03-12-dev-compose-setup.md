@@ -134,7 +134,7 @@ Expected defaults:
 - bff at `http://localhost:${BFF_PORT}`
 - db at `localhost:${POSTGRES_PORT}`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/DEVELOPMENT.md README.md
@@ -146,12 +146,12 @@ git commit -m "docs: add podman compose development workflow"
 **Files:**
 - Optional create: `docs/verification/2026-03-12-dev-compose-setup.md`
 
-- [ ] **Step 1: Bring stack up from compose**
+- [x] **Step 1: Bring stack up from compose**
 
 Run: `podman compose up -d --build`
 Expected: `db`, `bff`, `web` all running.
 
-- [ ] **Step 2: Verify health and reachability**
+- [x] **Step 2: Verify health and reachability**
 
 Run:
 - `curl -i http://localhost:${BFF_PORT}/health`
@@ -159,12 +159,12 @@ Run:
 
 Expected: BFF health `200`, web reachable.
 
-- [ ] **Step 3: Tear down stack**
+- [x] **Step 3: Tear down stack**
 
 Run: `podman compose down`
 Expected: services stopped cleanly.
 
-- [ ] **Step 4: Record verification notes and commit**
+- [x] **Step 4: Record verification notes and commit**
 
 ```bash
 git add docs/verification/2026-03-12-dev-compose-setup.md
@@ -175,10 +175,10 @@ git commit -m "test: verify podman compose dev stack startup"
 
 ## Exit Criteria
 
-- [ ] `compose.yml` runs web+bff+db in dev mode.
-- [ ] `REFWEAVER_API_BASE_URL` is mandatory at compose evaluation time.
-- [ ] `.env.example` fully documents configurable runtime and compose behavior.
-- [ ] Podman-focused docs are present and accurate.
-- [ ] Compose startup/health verification is documented.
+- [x] `compose.yml` runs web+bff+db in dev mode.
+- [x] `REFWEAVER_API_BASE_URL` is mandatory at compose evaluation time.
+- [x] `.env.example` fully documents configurable runtime and compose behavior.
+- [x] Podman-focused docs are present and accurate.
+- [x] Compose startup/health verification is documented.
 
 Plan complete and saved to `docs/superpowers/plans/2026-03-12-dev-compose-setup.md`. Ready to execute?

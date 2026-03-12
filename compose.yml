@@ -37,6 +37,9 @@ services:
       - "${BFF_PORT:-3001}:${BFF_PORT:-3001}"
     volumes:
       - ./:/workspace:Z
+      - bun_node_modules:/workspace/node_modules
+      - bff_node_modules:/workspace/apps/bff/node_modules
+      - db_node_modules:/workspace/packages/db/node_modules
 
   web:
     image: docker.io/oven/bun:1.2.8
@@ -56,6 +59,12 @@ services:
       - "${WEB_PORT:-5173}:${WEB_PORT:-5173}"
     volumes:
       - ./:/workspace:Z
+      - bun_node_modules:/workspace/node_modules
+      - web_node_modules:/workspace/apps/web/node_modules
 
 volumes:
   postgres_data:
+  bun_node_modules:
+  bff_node_modules:
+  web_node_modules:
+  db_node_modules:
