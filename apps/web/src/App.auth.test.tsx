@@ -9,6 +9,7 @@ vi.mock("./auth/use-auth", () => ({
 
 import { useAuth } from "./auth/use-auth";
 import { App } from "./App";
+import { LoginForm } from "./auth/LoginForm";
 
 const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
 
@@ -68,6 +69,46 @@ describe("App auth shell", () => {
     });
     const text = JSON.stringify(renderer!.toJSON());
     expect(text).toContain("Please log in");
+  });
+
+  it("prevents duplicate login submissions while request is in flight", async () => {
+    let resolveLogin: (() => void) | undefined;
+    const login = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLogin = resolve;
+        })
+    );
+
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login,
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const loginForm = renderer!.root.findByType(LoginForm);
+
+    await act(async () => {
+      void loginForm.props.onLogin("ada", "safe-pass");
+      void loginForm.props.onLogin("ada", "safe-pass");
+    });
+
+    expect(login).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveLogin?.();
+      await Promise.resolve();
+    });
   });
 
   it("shows visible error when logout fails", async () => {

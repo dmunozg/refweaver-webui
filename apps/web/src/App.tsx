@@ -8,10 +8,16 @@ export function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const loginInFlightRef = useRef(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const logoutInFlightRef = useRef(false);
 
   async function handleLogin(identifier: string, password: string) {
+    if (loginInFlightRef.current) {
+      return;
+    }
+
+    loginInFlightRef.current = true;
     setLoginError(null);
     setSessionError(null);
     setIsSubmitting(true);
@@ -24,6 +30,7 @@ export function App() {
         setLoginError("Login failed. Please try again.");
       }
     } finally {
+      loginInFlightRef.current = false;
       setIsSubmitting(false);
     }
   }
