@@ -19,12 +19,12 @@
 - Modify: `packages/db/src/schema/schema.test.ts`
 - Modify: `packages/db/migrations/0000_nebulous_dreadnoughts.sql`
 
-- [ ] **Step 1: Write failing schema tests for new columns/tables**
-- [ ] **Step 2: Run schema tests to confirm failure**
-- [ ] **Step 3: Implement schema updates and exports**
-- [ ] **Step 4: Update migration SQL for existing dev baseline**
-- [ ] **Step 5: Re-run schema tests to verify pass**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Write failing schema tests for new columns/tables**
+- [x] **Step 2: Run schema tests to confirm failure**
+- [x] **Step 3: Implement schema updates and exports**
+- [x] **Step 4: Update migration SQL for existing dev baseline**
+- [x] **Step 5: Re-run schema tests to verify pass**
+- [x] **Step 6: Commit**
 
 ### Task 2: Project domain store and service
 
@@ -35,12 +35,12 @@
 - Create: `apps/bff/src/projects/store.test.ts`
 - Create: `apps/bff/src/projects/service.test.ts`
 
-- [ ] **Step 1: Write failing tests for create/list/get/update/delete/restore rules**
-- [ ] **Step 2: Run tests to confirm failure**
-- [ ] **Step 3: Implement store methods with owner scoping**
-- [ ] **Step 4: Implement service validation and state rules**
-- [ ] **Step 5: Re-run tests to verify pass**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Write failing tests for create/list/get/update/delete/restore rules**
+- [x] **Step 2: Run tests to confirm failure**
+- [x] **Step 3: Implement store methods with owner scoping**
+- [x] **Step 4: Implement service validation and state rules**
+- [x] **Step 5: Re-run tests to verify pass**
+- [x] **Step 6: Commit**
 
 ### Task 3: Typed RefWeaver client adapter
 
