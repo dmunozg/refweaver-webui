@@ -23,11 +23,17 @@ bun install
 cp .env.example .env
 ```
 
-3. Start services:
+3. Start services (manual mode):
 
 ```bash
 bun run --filter @refweaver/bff dev
 bun run --filter @refweaver/web dev
+```
+
+Or run the full dev stack (web + bff + postgres) with Podman Compose:
+
+```bash
+podman compose up --build
 ```
 
 4. Run tests:

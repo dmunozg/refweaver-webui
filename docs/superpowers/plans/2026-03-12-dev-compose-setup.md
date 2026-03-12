@@ -104,7 +104,7 @@ Expected: PASS when required vars are set in environment/.env.
 Run: `env -u REFWEAVER_API_BASE_URL podman compose -f compose.yml config`
 Expected: FAIL with message that `REFWEAVER_API_BASE_URL` is required.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add compose.yml
@@ -119,7 +119,7 @@ git commit -m "feat: add podman-friendly dev compose stack"
 - Modify: `docs/DEVELOPMENT.md`
 - Optional Modify: `README.md`
 
-- [ ] **Step 1: Add Podman-first quickstart section**
+- [x] **Step 1: Add Podman-first quickstart section**
 
 Must include:
 - copy env template
@@ -127,7 +127,7 @@ Must include:
 - start stack (`podman compose up --build`)
 - stop stack (`podman compose down` / `podman compose down -v`)
 
-- [ ] **Step 2: Add service endpoint expectations**
+- [x] **Step 2: Add service endpoint expectations**
 
 Expected defaults:
 - web at `http://localhost:${WEB_PORT}`
