@@ -21,4 +21,10 @@ describe("auth api", () => {
 
     await expect(fetchCurrentUser()).rejects.toEqual(expect.any(AuthClientError));
   });
+
+  it("maps malformed /auth/me JSON payloads to AuthClientError", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{", { status: 200 }));
+
+    await expect(fetchCurrentUser()).rejects.toEqual(expect.any(AuthClientError));
+  });
 });

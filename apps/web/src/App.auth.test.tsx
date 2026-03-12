@@ -17,19 +17,23 @@ afterEach(() => {
 });
 
 describe("App auth shell", () => {
+  function authenticatedState() {
+    return {
+      status: "authenticated" as const,
+      user: {
+        id: "user-1",
+        username: "ada",
+        email: "ada@example.com",
+        name: "Ada",
+        teamId: null
+      },
+      error: null
+    };
+  }
+
   it("renders authenticated shell when user is authenticated", () => {
     mockedUseAuth.mockReturnValue({
-      state: {
-        status: "authenticated",
-        user: {
-          id: "user-1",
-          username: "ada",
-          email: "ada@example.com",
-          name: "Ada",
-          teamId: null
-        },
-        error: null
-      },
+      state: authenticatedState(),
       refresh: async () => {},
       login: async () => {},
       logout: async () => {}
@@ -72,17 +76,7 @@ describe("App auth shell", () => {
     });
 
     mockedUseAuth.mockReturnValue({
-      state: {
-        status: "authenticated",
-        user: {
-          id: "user-1",
-          username: "ada",
-          email: "ada@example.com",
-          name: "Ada",
-          teamId: null
-        },
-        error: null
-      },
+      state: authenticatedState(),
       refresh: async () => {},
       login: async () => {},
       logout
@@ -101,5 +95,43 @@ describe("App auth shell", () => {
     expect(logout).toHaveBeenCalledTimes(1);
     const text = JSON.stringify(renderer!.toJSON());
     expect(text).toContain("Could not log out. Please try again.");
+  });
+
+  it("prevents duplicate logout submissions while request is in flight", async () => {
+    let resolveLogout: (() => void) | undefined;
+    const logout = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveLogout = resolve;
+        })
+    );
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const logoutButton = renderer!.root.findByType("button");
+
+    await act(async () => {
+      logoutButton.props.onClick();
+      logoutButton.props.onClick();
+    });
+
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(renderer!.root.findByType("button").props.disabled).toBe(true);
+
+    await act(async () => {
+      resolveLogout?.();
+    });
+
+    expect(renderer!.root.findByType("button").props.disabled).toBe(false);
   });
 });

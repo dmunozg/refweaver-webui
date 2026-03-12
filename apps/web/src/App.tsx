@@ -1,5 +1,5 @@
 import { useAuth } from "./auth/use-auth";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { LoginForm } from "./auth/LoginForm";
 import { AuthClientError } from "./auth/api";
 
@@ -8,6 +8,8 @@ export function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const logoutInFlightRef = useRef(false);
 
   async function handleLogin(identifier: string, password: string) {
     setLoginError(null);
@@ -27,11 +29,20 @@ export function App() {
   }
 
   async function handleLogout() {
+    if (logoutInFlightRef.current) {
+      return;
+    }
+
+    logoutInFlightRef.current = true;
+    setIsLoggingOut(true);
     setSessionError(null);
     try {
       await logout();
     } catch {
       setSessionError("Could not log out. Please try again.");
+    } finally {
+      logoutInFlightRef.current = false;
+      setIsLoggingOut(false);
     }
   }
 
@@ -44,7 +55,7 @@ export function App() {
       <main>
         {sessionError ? <p>{sessionError}</p> : null}
         <p>Welcome, {state.user.name}</p>
-        <button type="button" onClick={() => void handleLogout()}>
+        <button type="button" onClick={handleLogout} disabled={isLoggingOut}>
           Log out
         </button>
       </main>

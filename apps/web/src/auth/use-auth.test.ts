@@ -32,5 +32,24 @@ describe("bootstrapAuthState", () => {
     });
 
     expect(state.status).toBe("error");
+    expect(state.error).toBe("Network error while checking session");
+  });
+
+  it("maps server session-check failures to a server-specific message", async () => {
+    const state = await bootstrapAuthState(async () => {
+      throw new AuthClientError("server_error");
+    });
+
+    expect(state.status).toBe("error");
+    expect(state.error).toBe("Server error while checking session");
+  });
+
+  it("maps invalid session payloads to an unexpected-response message", async () => {
+    const state = await bootstrapAuthState(async () => {
+      throw new AuthClientError("unknown");
+    });
+
+    expect(state.status).toBe("error");
+    expect(state.error).toBe("Unexpected session response");
   });
 });
