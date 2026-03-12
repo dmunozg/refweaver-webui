@@ -65,12 +65,12 @@
 - Create: `apps/bff/src/runs/store.test.ts`
 - Create: `apps/bff/src/runs/service.test.ts`
 
-- [ ] **Step 1: Write failing tests for submit/list/get/poll lifecycle**
-- [ ] **Step 2: Run tests to confirm failure**
-- [ ] **Step 3: Implement persistence and lifecycle state updates**
-- [ ] **Step 4: Implement owner and active-project guards**
-- [ ] **Step 5: Re-run tests to verify pass**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Write failing tests for submit/list/get/poll lifecycle**
+- [x] **Step 2: Run tests to confirm failure**
+- [x] **Step 3: Implement persistence and lifecycle state updates**
+- [x] **Step 4: Implement owner and active-project guards**
+- [x] **Step 5: Re-run tests to verify pass**
+- [x] **Step 6: Commit**
 
 ### Task 5: Project routes
 
