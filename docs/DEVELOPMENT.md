@@ -74,6 +74,11 @@ Run BFF:
 bun run --filter @refweaver/bff dev
 ```
 
+Milestone 3 BFF routes include:
+- Project lifecycle: `POST/GET/PATCH/DELETE /projects` and `POST /projects/:projectId/restore`
+- Run lifecycle: `POST /projects/:projectId/runs`, `GET /projects/:projectId/runs`,
+  `GET /projects/:projectId/runs/:runId`, and `GET /projects/:projectId/jobs/:jobId`
+
 Run Web app:
 
 ```bash

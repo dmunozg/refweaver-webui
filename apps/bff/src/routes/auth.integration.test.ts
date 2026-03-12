@@ -43,6 +43,31 @@ async function applyMigrations() {
       }
     }
   }
+
+  await client.unsafe(
+    "ALTER TABLE projects ADD COLUMN IF NOT EXISTS deleted_at timestamp with time zone"
+  );
+
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS analysis_runs (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      project_id uuid NOT NULL REFERENCES projects(id) ON DELETE cascade,
+      user_id uuid NOT NULL REFERENCES users(id) ON DELETE cascade,
+      input_text text NOT NULL,
+      status text NOT NULL,
+      refweaver_run_id text,
+      refweaver_job_id text,
+      created_at timestamp with time zone DEFAULT now() NOT NULL,
+      updated_at timestamp with time zone DEFAULT now() NOT NULL
+    )
+  `);
+
+  await client.unsafe(
+    "CREATE INDEX IF NOT EXISTS analysis_runs_project_created_idx ON analysis_runs (project_id, created_at)"
+  );
+  await client.unsafe(
+    "CREATE INDEX IF NOT EXISTS analysis_runs_user_created_idx ON analysis_runs (user_id, created_at)"
+  );
 }
 
 describe("auth signup integration", () => {

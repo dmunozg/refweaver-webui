@@ -3,6 +3,43 @@
 This document describes the current FastAPI behavior for all exposed endpoints,
 including headers, payload validation, error handling, and async run lifecycle.
 
+## BFF Domain API (WebUI)
+
+The WebUI BFF exposes user-scoped project and run lifecycle routes. These routes
+are authenticated with the WebUI session cookie and do not require browser
+clients to send `X-User-Id` directly.
+
+### Projects
+
+- `POST /projects` with `{ "name": string }` creates a project.
+- `GET /projects` lists active projects for the signed-in user.
+- `GET /projects?include_deleted=true` includes archived projects.
+- `GET /projects/:projectId` fetches owner-scoped project detail.
+- `PATCH /projects/:projectId` with `{ "name": string }` renames project.
+- `DELETE /projects/:projectId` soft-deletes a project.
+- `POST /projects/:projectId/restore` restores a soft-deleted project.
+
+### Runs (project-scoped)
+
+- `POST /projects/:projectId/runs` with `{ "text": string }` submits analyze.
+- `GET /projects/:projectId/runs` lists local run history for project.
+- `GET /projects/:projectId/runs/:runId` fetches one run record.
+- `GET /projects/:projectId/jobs/:jobId` polls async job and syncs local status.
+
+### BFF error envelope
+
+Project/run endpoints normalize errors to:
+
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": {}
+  }
+}
+```
+
 ## Base URL
 
 - Local default: `http://localhost:8000`

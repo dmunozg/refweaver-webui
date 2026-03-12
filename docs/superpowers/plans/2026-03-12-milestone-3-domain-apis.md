@@ -79,12 +79,12 @@
 - Create: `apps/bff/src/routes/projects.test.ts`
 - Modify: `apps/bff/src/app.ts`
 
-- [ ] **Step 1: Write failing route tests for project API contract**
-- [ ] **Step 2: Run tests to confirm failure**
-- [ ] **Step 3: Implement route handlers and request validation**
-- [ ] **Step 4: Register routes in app bootstrap**
-- [ ] **Step 5: Re-run tests to verify pass**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Write failing route tests for project API contract**
+- [x] **Step 2: Run tests to confirm failure**
+- [x] **Step 3: Implement route handlers and request validation**
+- [x] **Step 4: Register routes in app bootstrap**
+- [x] **Step 5: Re-run tests to verify pass**
+- [x] **Step 6: Commit**
 
 ### Task 6: Run routes
 
@@ -93,12 +93,12 @@
 - Create: `apps/bff/src/routes/runs.test.ts`
 - Modify: `apps/bff/src/app.ts`
 
-- [ ] **Step 1: Write failing route tests for run lifecycle endpoints**
-- [ ] **Step 2: Run tests to confirm failure**
-- [ ] **Step 3: Implement route handlers and response mapping**
-- [ ] **Step 4: Register routes in app bootstrap**
-- [ ] **Step 5: Re-run tests to verify pass**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Write failing route tests for run lifecycle endpoints**
+- [x] **Step 2: Run tests to confirm failure**
+- [x] **Step 3: Implement route handlers and response mapping**
+- [x] **Step 4: Register routes in app bootstrap**
+- [x] **Step 5: Re-run tests to verify pass**
+- [x] **Step 6: Commit**
 
 ### Task 7: Unified error normalization
 
@@ -108,12 +108,12 @@
 - Modify: `apps/bff/src/routes/runs.ts`
 - Modify: route tests as needed
 
-- [ ] **Step 1: Write failing tests for envelope and code consistency**
-- [ ] **Step 2: Run tests to confirm failure**
-- [ ] **Step 3: Implement shared mappers for domain and upstream errors**
-- [ ] **Step 4: Apply normalization to all new routes**
-- [ ] **Step 5: Re-run tests to verify pass**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Write failing tests for envelope and code consistency**
+- [x] **Step 2: Run tests to confirm failure**
+- [x] **Step 3: Implement shared mappers for domain and upstream errors**
+- [x] **Step 4: Apply normalization to all new routes**
+- [x] **Step 5: Re-run tests to verify pass**
+- [x] **Step 6: Commit**
 
 ### Task 8: Integration coverage and docs
 
@@ -124,9 +124,9 @@
 - Modify: `docs/DEVELOPMENT.md`
 - Create: `docs/verification/2026-03-12-milestone-3-domain-apis.md`
 
-- [ ] **Step 1: Write failing integration tests for ownership and lifecycle flows**
-- [ ] **Step 2: Run tests to confirm failure**
-- [ ] **Step 3: Implement minimal fixes for uncovered gaps**
-- [ ] **Step 4: Update docs and verification artifact**
-- [ ] **Step 5: Re-run full test suite and compose config check**
-- [ ] **Step 6: Commit**
+- [x] **Step 1: Write failing integration tests for ownership and lifecycle flows**
+- [x] **Step 2: Run tests to confirm failure**
+- [x] **Step 3: Implement minimal fixes for uncovered gaps**
+- [x] **Step 4: Update docs and verification artifact**
+- [x] **Step 5: Re-run full test suite and compose config check**
+- [x] **Step 6: Commit**
