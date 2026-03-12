@@ -49,7 +49,7 @@ Requirements:
 Run: `grep -n "POSTGRES_DB\|POSTGRES_USER\|POSTGRES_PASSWORD\|POSTGRES_PORT\|BFF_PORT\|WEB_PORT\|REFWEAVER_API_BASE_URL" .env.example`
 Expected: all keys present.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add .env.example
