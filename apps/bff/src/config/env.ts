@@ -5,6 +5,34 @@ export type ParsedEnv = {
   BFF_ALLOWED_ORIGINS: string[];
 };
 
+function parseAllowedOrigins(input: string): string[] {
+  const candidates = input
+    .split(/[\s,]+/)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+
+  if (candidates.length === 0) {
+    throw new Error("BFF_ALLOWED_ORIGINS must include at least one origin");
+  }
+
+  return candidates.map((value) => {
+    let parsed: URL;
+    try {
+      parsed = new URL(value);
+    } catch {
+      throw new Error(`Invalid BFF_ALLOWED_ORIGINS entry: ${value}`);
+    }
+
+    const isHttp = parsed.protocol === "http:" || parsed.protocol === "https:";
+    const isOriginOnly = parsed.pathname === "/" && parsed.search === "" && parsed.hash === "";
+    if (!isHttp || !isOriginOnly) {
+      throw new Error(`Invalid BFF_ALLOWED_ORIGINS entry: ${value}`);
+    }
+
+    return parsed.origin;
+  });
+}
+
 export function parseEnv(input: Record<string, string | undefined>): ParsedEnv {
   const databaseUrl = input.DATABASE_URL;
   const sessionSecret = input.SESSION_SECRET;
@@ -28,9 +56,6 @@ export function parseEnv(input: Record<string, string | undefined>): ParsedEnv {
     DATABASE_URL: databaseUrl,
     SESSION_SECRET: sessionSecret,
     REFWEAVER_API_BASE_URL: refweaverApiBaseUrl,
-    BFF_ALLOWED_ORIGINS: bffAllowedOrigins
-      .split(/[\s,]+/)
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0)
+    BFF_ALLOWED_ORIGINS: parseAllowedOrigins(bffAllowedOrigins)
   };
 }

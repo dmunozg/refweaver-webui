@@ -22,7 +22,16 @@ Optional host exposure controls:
 - `VITE_ALLOWED_HOSTS` (defaults to `localhost,127.0.0.1`)
 - `BFF_ALLOWED_ORIGINS` (defaults to `http://localhost:5173,http://127.0.0.1:5173`)
 
-For remote access (for example over Tailscale), include your web origin in `BFF_ALLOWED_ORIGINS`, such as `http://vesuvio3:5173`.
+For remote access (for example over Tailscale), you must configure both:
+- `VITE_ALLOWED_HOSTS` to include the web hostname (for example `vesuvio3`)
+- `BFF_ALLOWED_ORIGINS` to include the full web origin (for example `http://vesuvio3:5173`)
+
+Example:
+
+```env
+VITE_ALLOWED_HOSTS=localhost,127.0.0.1,vesuvio3
+BFF_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173,http://vesuvio3:5173
+```
 
 Start the local development stack:
 

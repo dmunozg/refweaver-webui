@@ -7,8 +7,6 @@ export default defineConfig(({ mode }) => {
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
 
-  console.log("[vite] allowedHosts:", allowedHosts);
-
   return {
     server: {
       allowedHosts
