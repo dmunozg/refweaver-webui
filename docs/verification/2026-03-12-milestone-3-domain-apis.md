@@ -24,3 +24,8 @@ podman compose -f compose.yml config
 - Auth signup and project creation via BFF: PASS (`201` on `/auth/signup`, `201` on `/projects`).
 - Run submission and polling via BFF with 1-sentence input: PASS (`202` submit, `200` poll with `finished`).
 - Operational note: inside compose containers, `REFWEAVER_API_BASE_URL` must target host-reachable DNS (`host.containers.internal`) rather than `localhost`.
+
+## Deferred migration-risk note
+
+- Current branch still edits baseline migration `0000` due pre-persistent stage assumptions.
+- Before first shared/persistent deployment, convert this to additive forward migration(s) and freeze applied migration history.
