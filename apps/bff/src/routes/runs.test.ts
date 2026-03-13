@@ -95,21 +95,24 @@ describe("run routes", () => {
       }
     });
 
-    const createResponse = await app.request("/projects/project-1/runs", {
+    const createResponse = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
       method: "POST",
       headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
       body: JSON.stringify({ text: "hello" })
     });
     expect(createResponse.status).toBe(202);
 
-    const listResponse = await app.request("/projects/project-1/runs", {
+    const listResponse = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
       headers: { cookie: "rw_session=known-token" }
     });
     expect(listResponse.status).toBe(200);
 
-    const jobResponse = await app.request("/projects/project-1/jobs/job-1", {
-      headers: { cookie: "rw_session=known-token" }
-    });
+    const jobResponse = await app.request(
+      "/projects/11111111-1111-4111-8111-111111111111/jobs/22222222-2222-4222-8222-222222222222",
+      {
+        headers: { cookie: "rw_session=known-token" }
+      }
+    );
     expect(jobResponse.status).toBe(200);
   });
 
@@ -133,7 +136,7 @@ describe("run routes", () => {
       }
     });
 
-    const response = await app.request("/projects/project-1/runs", {
+    const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
       method: "POST",
       headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
       body: JSON.stringify({ text: "hello" })
@@ -142,5 +145,33 @@ describe("run routes", () => {
     expect(response.status).toBe(409);
     const body = await response.json();
     expect(body.error.code).toBe("project_inactive");
+  });
+
+  it("returns validation error for malformed run route ids", async () => {
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun() {
+          throw new Error("unused");
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      }
+    });
+
+    const response = await app.request("/projects/not-a-uuid/runs", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
   });
 });

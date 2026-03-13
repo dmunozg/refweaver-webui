@@ -1,19 +1,20 @@
 import type { Hono } from "hono";
 import { requireAuth } from "../middleware/require-auth";
 import { toErrorResponse } from "../http/errors";
+import { isUuid } from "../http/validation";
+import type { createRunService } from "../runs/service";
 
-type RunService = {
-  submitRun(userId: string, projectId: string, text: string): Promise<unknown>;
-  listRuns(userId: string, projectId: string): Promise<unknown[]>;
-  getRun(userId: string, projectId: string, runId: string): Promise<unknown>;
-  pollJob(userId: string, projectId: string, jobId: string): Promise<{ status: string; run: unknown }>;
-};
+type RunService = ReturnType<typeof createRunService>;
 
 type AuthStore = Parameters<typeof requireAuth>[0];
 
 export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: RunService): void {
   app.post("/projects/:projectId/runs", requireAuth(authStore), async (c) => {
     const authUser = c.get("authUser") as { id: string };
+    const projectId = c.req.param("projectId");
+    if (!isUuid(projectId)) {
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
+    }
     let body: unknown;
     try {
       body = await c.req.json();
@@ -27,7 +28,7 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
     }
 
     try {
-      const run = await runService.submitRun(authUser.id, c.req.param("projectId"), input.text);
+      const run = await runService.submitRun(authUser.id, projectId, input.text);
       return c.json({ run }, 202);
     } catch (error) {
       const mapped = toErrorResponse(error);
@@ -37,8 +38,12 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
 
   app.get("/projects/:projectId/runs", requireAuth(authStore), async (c) => {
     const authUser = c.get("authUser") as { id: string };
+    const projectId = c.req.param("projectId");
+    if (!isUuid(projectId)) {
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
+    }
     try {
-      const runs = await runService.listRuns(authUser.id, c.req.param("projectId"));
+      const runs = await runService.listRuns(authUser.id, projectId);
       return c.json({ runs }, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);
@@ -48,8 +53,16 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
 
   app.get("/projects/:projectId/runs/:runId", requireAuth(authStore), async (c) => {
     const authUser = c.get("authUser") as { id: string };
+    const projectId = c.req.param("projectId");
+    const runId = c.req.param("runId");
+    if (!isUuid(projectId)) {
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
+    }
+    if (!isUuid(runId)) {
+      return c.json({ error: { code: "validation_error", message: "Invalid run id" } }, 422);
+    }
     try {
-      const run = await runService.getRun(authUser.id, c.req.param("projectId"), c.req.param("runId"));
+      const run = await runService.getRun(authUser.id, projectId, runId);
       return c.json({ run }, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);
@@ -59,8 +72,16 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
 
   app.get("/projects/:projectId/jobs/:jobId", requireAuth(authStore), async (c) => {
     const authUser = c.get("authUser") as { id: string };
+    const projectId = c.req.param("projectId");
+    const jobId = c.req.param("jobId");
+    if (!isUuid(projectId)) {
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
+    }
+    if (!isUuid(jobId)) {
+      return c.json({ error: { code: "validation_error", message: "Invalid job id" } }, 422);
+    }
     try {
-      const result = await runService.pollJob(authUser.id, c.req.param("projectId"), c.req.param("jobId"));
+      const result = await runService.pollJob(authUser.id, projectId, jobId);
       return c.json(result, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);

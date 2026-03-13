@@ -39,7 +39,7 @@ function createMemoryRunStore(): RunStore {
   return {
     async createRun(input) {
       const row: RunRecord = {
-        id: `run-${seq++}`,
+        id: `10000000-0000-4000-8000-${String(seq++).padStart(12, "0")}`,
         projectId: input.projectId,
         userId: input.userId,
         inputText: input.text,
@@ -90,10 +90,20 @@ describe("run route integration", () => {
       store: createMemoryRunStore(),
       refweaver: {
         async analyze() {
-          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+          return {
+            runId: "20000000-0000-4000-8000-000000000001",
+            status: "queued",
+            jobId: "30000000-0000-4000-8000-000000000001",
+            jobUrl: "/jobs/30000000-0000-4000-8000-000000000001"
+          };
         },
         async getJob() {
-          return { status: "finished", jobId: "job-1", userId: "user-1", runId: "up-run-1" };
+          return {
+            status: "finished",
+            jobId: "30000000-0000-4000-8000-000000000001",
+            userId: "user-1",
+            runId: "20000000-0000-4000-8000-000000000001"
+          };
         },
         async getRun() {
           return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
@@ -116,23 +126,26 @@ describe("run route integration", () => {
 
     const app = createApp({ signupStore: buildAuthStore(), runService });
 
-    const submit = await app.request("/projects/project-1/runs", {
+    const submit = await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
       method: "POST",
       headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
       body: JSON.stringify({ text: "Test sentence" })
     });
     expect(submit.status).toBe(202);
 
-    const list = await app.request("/projects/project-1/runs", {
+    const list = await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
       headers: { cookie: "rw_session=known-token" }
     });
     expect(list.status).toBe(200);
     const listBody = await list.json();
     expect(listBody.runs).toHaveLength(1);
 
-    const poll = await app.request("/projects/project-1/jobs/job-1", {
-      headers: { cookie: "rw_session=known-token" }
-    });
+    const poll = await app.request(
+      "/projects/40000000-0000-4000-8000-000000000001/jobs/30000000-0000-4000-8000-000000000001",
+      {
+        headers: { cookie: "rw_session=known-token" }
+      }
+    );
     expect(poll.status).toBe(200);
     const pollBody = await poll.json();
     expect(pollBody.status).toBe("finished");
@@ -143,10 +156,15 @@ describe("run route integration", () => {
       store: createMemoryRunStore(),
       refweaver: {
         async analyze() {
-          return { runId: "up-run-9", status: "queued", jobId: "job-9", jobUrl: "/jobs/job-9" };
+          return {
+            runId: "20000000-0000-4000-8000-000000000009",
+            status: "queued",
+            jobId: "30000000-0000-4000-8000-000000000009",
+            jobUrl: "/jobs/30000000-0000-4000-8000-000000000009"
+          };
         },
         async getJob() {
-          return { status: "started", jobId: "job-9", userId: "user-1" };
+          return { status: "started", jobId: "30000000-0000-4000-8000-000000000009", userId: "user-1" };
         },
         async getRun() {
           return { run: { id: "up-run-9" }, sentences: [], verdicts: {}, evaluations: [] };
@@ -170,16 +188,19 @@ describe("run route integration", () => {
     const ownerApp = createApp({ signupStore: buildAuthStore("user-1"), runService });
     const otherApp = createApp({ signupStore: buildAuthStore("user-2"), runService });
 
-    const submit = await ownerApp.request("/projects/project-1/runs", {
+    const submit = await ownerApp.request("/projects/40000000-0000-4000-8000-000000000009/runs", {
       method: "POST",
       headers: { cookie: "rw_session=owner", "content-type": "application/json" },
       body: JSON.stringify({ text: "Owner text" })
     });
     expect(submit.status).toBe(202);
 
-    const denied = await otherApp.request("/projects/project-1/jobs/job-9", {
-      headers: { cookie: "rw_session=other" }
-    });
+    const denied = await otherApp.request(
+      "/projects/40000000-0000-4000-8000-000000000009/jobs/30000000-0000-4000-8000-000000000009",
+      {
+        headers: { cookie: "rw_session=other" }
+      }
+    );
     expect(denied.status).toBe(404);
     const deniedBody = await denied.json();
     expect(deniedBody.error.code).toBe("run_not_found");
@@ -190,10 +211,15 @@ describe("run route integration", () => {
       store: createMemoryRunStore(),
       refweaver: {
         async analyze() {
-          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+          return {
+            runId: "20000000-0000-4000-8000-000000000001",
+            status: "queued",
+            jobId: "30000000-0000-4000-8000-000000000001",
+            jobUrl: "/jobs/30000000-0000-4000-8000-000000000001"
+          };
         },
         async getJob() {
-          return { status: "started", jobId: "job-1", userId: "user-1" };
+          return { status: "started", jobId: "30000000-0000-4000-8000-000000000001", userId: "user-1" };
         },
         async getRun() {
           return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
@@ -215,7 +241,7 @@ describe("run route integration", () => {
     });
 
     const app = createApp({ signupStore: buildAuthStore("user-1"), runService });
-    const response = await app.request("/projects/project-1/runs", {
+    const response = await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
       method: "POST",
       headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
       body: JSON.stringify({ text: "Test sentence" })

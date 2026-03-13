@@ -64,6 +64,29 @@ describe("refweaver client", () => {
     expect(fetchMock.mock.calls[1]?.[0]).toBe("http://localhost:8000/runs/run-1");
   });
 
+  it("encodes job and run path ids", async () => {
+    const fetchMock = spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ status: "started", job_id: "job/1", user_id: "user-1" }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ run: { id: "run/1" }, sentences: [], verdicts: {}, evaluations: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" }
+        })
+      );
+
+    const client = createRefweaverClient({ baseUrl: "http://localhost:8000" });
+    await client.getJob("user-1", "job/1");
+    await client.getRun("user-1", "run/1");
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://localhost:8000/jobs/job%2F1");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("http://localhost:8000/runs/run%2F1");
+  });
+
   it("maps upstream non-2xx into typed http error", async () => {
     spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(

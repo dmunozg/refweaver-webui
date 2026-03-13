@@ -39,7 +39,7 @@ function createMemoryProjectStore(): ProjectStore {
   return {
     async createProject(input) {
       const row: ProjectRecord = {
-        id: `project-${seq++}`,
+        id: `00000000-0000-4000-8000-${String(seq++).padStart(12, "0")}`,
         ownerUserId: input.ownerUserId,
         name: input.name,
         teamId: null,

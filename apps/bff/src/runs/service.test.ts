@@ -222,4 +222,54 @@ describe("run service", () => {
       RunNotFoundError
     );
   });
+
+  it("throws when poll update cannot persist local run", async () => {
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return makeRecord();
+        },
+        async getRunByJobId() {
+          return makeRecord({ refweaverJobId: "job-1" });
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "finished", jobId: "job-1", userId: "user-1", runId: "up-run-2" };
+        },
+        async getRun() {
+          return { run: { id: "up-run-2" }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    await expect(service.pollJob("user-1", "project-1", "job-1")).rejects.toBeInstanceOf(
+      RunNotFoundError
+    );
+  });
 });

@@ -90,7 +90,7 @@ export function createRefweaverClient(config: ClientConfig) {
         user_id: string;
         run_id?: string;
         run_url?: string;
-      }>(`/jobs/${jobId}`, userId);
+      }>(`/jobs/${encodeURIComponent(jobId)}`, userId);
 
       return {
         status: payload.status,
@@ -102,7 +102,7 @@ export function createRefweaverClient(config: ClientConfig) {
     },
 
     async getRun(userId: string, runId: string): Promise<RunResponse> {
-      const payload = await request<RunResponse>(`/runs/${runId}`, userId);
+      const payload = await request<RunResponse>(`/runs/${encodeURIComponent(runId)}`, userId);
       return payload;
     }
   };

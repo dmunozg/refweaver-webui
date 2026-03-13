@@ -13,9 +13,9 @@ const env = parseEnv(process.env);
 const port = Number(process.env.PORT ?? 3001);
 const { db } = createDb(env.DATABASE_URL);
 const signupStore = createSignupStore(db);
-const projectStore = createProjectStore(db as never);
+const projectStore = createProjectStore(db);
 const projectService = createProjectService(projectStore);
-const runStore = createRunStore(db as never);
+const runStore = createRunStore(db);
 const refweaverClient = createRefweaverClient({
   baseUrl: env.REFWEAVER_API_BASE_URL,
   apiKey: process.env.REFWEAVER_API_KEY || undefined

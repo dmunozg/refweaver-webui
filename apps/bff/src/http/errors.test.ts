@@ -22,6 +22,15 @@ describe("toErrorResponse", () => {
     }
   });
 
+  it("normalizes upstream 5xx responses to upstream_unavailable", () => {
+    const statuses = [500, 502, 503] as const;
+    for (const status of statuses) {
+      const result = toErrorResponse(new RefweaverHttpError(status, "raw_upstream", "raw message", null));
+      expect(result.status).toBe(502);
+      expect(result.body.error.code).toBe("upstream_unavailable");
+    }
+  });
+
   it("maps network errors to upstream_unavailable", () => {
     const result = toErrorResponse(new RefweaverNetworkError("down"));
     expect(result.status).toBe(502);

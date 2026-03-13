@@ -1,35 +1,13 @@
 import { and, desc, eq } from "drizzle-orm";
 import { analysisRuns } from "@refweaver/db";
+import type { Database } from "@refweaver/db";
 import type { RunCreateInput, RunRecord, RunStore } from "./types";
-
-type RunDb = {
-  insert(table: unknown): {
-    values(values: unknown): {
-      returning(): Promise<Array<Record<string, unknown>>>;
-    };
-  };
-  select(): {
-    from(table: unknown): {
-      where(condition: unknown): {
-        orderBy(...conditions: unknown[]): Promise<Array<Record<string, unknown>>>;
-        limit(limit: number): Promise<Array<Record<string, unknown>>>;
-      };
-    };
-  };
-  update(table: unknown): {
-    set(values: unknown): {
-      where(condition: unknown): {
-        returning(): Promise<Array<Record<string, unknown>>>;
-      };
-    };
-  };
-};
 
 function castRuns(rows: Array<Record<string, unknown>>): RunRecord[] {
   return rows as RunRecord[];
 }
 
-export function createRunStore(db: RunDb): RunStore {
+export function createRunStore(db: Database): RunStore {
   return {
     async createRun(input: RunCreateInput) {
       const [row] = castRuns(

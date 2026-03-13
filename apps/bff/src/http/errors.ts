@@ -60,6 +60,18 @@ export function toErrorResponse(error: unknown): { status: number; body: ErrorEn
   }
 
   if (error instanceof RefweaverHttpError) {
+    if (error.status >= 500) {
+      return {
+        status: 502,
+        body: {
+          error: {
+            code: "upstream_unavailable",
+            message: "Unable to reach RefWeaver"
+          }
+        }
+      };
+    }
+
     return {
       status: error.status,
       body: {

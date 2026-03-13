@@ -115,12 +115,46 @@ describe("project routes", () => {
       }
     });
 
-    const response = await app.request("/projects/missing", {
+    const response = await app.request("/projects/11111111-1111-4111-8111-111111111111", {
       headers: { cookie: "rw_session=known-token" }
     });
 
     expect(response.status).toBe(404);
     const body = await response.json();
     expect(body.error.code).toBe("project_not_found");
+  });
+
+  it("returns validation error for malformed project id", async () => {
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      projectService: {
+        async createProject() {
+          throw new Error("unused");
+        },
+        async listProjects() {
+          return [];
+        },
+        async getProject() {
+          throw new Error("unused");
+        },
+        async updateProjectName() {
+          throw new Error("unused");
+        },
+        async softDeleteProject() {
+          throw new Error("unused");
+        },
+        async restoreProject() {
+          throw new Error("unused");
+        }
+      }
+    });
+
+    const response = await app.request("/projects/not-a-uuid", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
   });
 });

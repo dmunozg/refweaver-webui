@@ -65,7 +65,7 @@ export function createRunService(deps: RunServiceDeps) {
       userId: string,
       projectId: string,
       jobId: string
-    ): Promise<{ status: string; run: RunRecord | null }> {
+    ): Promise<{ status: string; run: RunRecord }> {
       await assertActiveProject(deps.projects, userId, projectId);
 
       const local = await deps.store.getRunByJobId(userId, projectId, jobId);
@@ -75,6 +75,9 @@ export function createRunService(deps: RunServiceDeps) {
 
       const job = await deps.refweaver.getJob(userId, jobId);
       const updated = await deps.store.updateRunStatus(local.id, job.status, job.runId ?? local.refweaverRunId);
+      if (!updated) {
+        throw new RunNotFoundError();
+      }
       return {
         status: job.status,
         run: updated

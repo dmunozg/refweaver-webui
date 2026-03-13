@@ -1,35 +1,13 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { projects } from "@refweaver/db";
+import type { Database } from "@refweaver/db";
 import type { CreateProjectInput, ProjectRecord, ProjectStore } from "./types";
-
-type ProjectDb = {
-  insert(table: unknown): {
-    values(values: unknown): {
-      returning(): Promise<Array<Record<string, unknown>>>;
-    };
-  };
-  select(): {
-    from(table: unknown): {
-      where(condition: unknown): {
-        orderBy(...conditions: unknown[]): Promise<Array<Record<string, unknown>>>;
-        limit(limit: number): Promise<Array<Record<string, unknown>>>;
-      };
-    };
-  };
-  update(table: unknown): {
-    set(values: unknown): {
-      where(condition: unknown): {
-        returning(): Promise<Array<Record<string, unknown>>>;
-      };
-    };
-  };
-};
 
 function castProjects(rows: Array<Record<string, unknown>>): ProjectRecord[] {
   return rows as ProjectRecord[];
 }
 
-export function createProjectStore(db: ProjectDb): ProjectStore {
+export function createProjectStore(db: Database): ProjectStore {
   return {
     async createProject(input: CreateProjectInput) {
       const [row] = castProjects(
