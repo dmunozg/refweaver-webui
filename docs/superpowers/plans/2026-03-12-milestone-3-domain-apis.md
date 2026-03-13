@@ -8,6 +8,8 @@
 
 **Tech Stack:** Bun, TypeScript, Hono, Drizzle ORM, PostgreSQL, Vitest
 
+**Scope note:** This branch intentionally includes compose/CORS hardening from the preceding development setup work because Milestone 3 verification depends on reliable remote-dev access and BFF-to-RefWeaver connectivity. These infrastructure changes are treated as enabling scope for validating the new domain API contract in realistic local environments.
+
 ---
 
 ### Task 1: DB schema for soft-delete and run tracking
