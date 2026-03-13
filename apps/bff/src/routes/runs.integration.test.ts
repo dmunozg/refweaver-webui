@@ -137,4 +137,92 @@ describe("run route integration", () => {
     const pollBody = await poll.json();
     expect(pollBody.status).toBe("finished");
   });
+
+  it("denies cross-user run access", async () => {
+    const runService = createRunService({
+      store: createMemoryRunStore(),
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-9", status: "queued", jobId: "job-9", jobUrl: "/jobs/job-9" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-9", userId: "user-1" };
+        },
+        async getRun() {
+          return { run: { id: "up-run-9" }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const ownerApp = createApp({ signupStore: buildAuthStore("user-1"), runService });
+    const otherApp = createApp({ signupStore: buildAuthStore("user-2"), runService });
+
+    const submit = await ownerApp.request("/projects/project-1/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=owner", "content-type": "application/json" },
+      body: JSON.stringify({ text: "Owner text" })
+    });
+    expect(submit.status).toBe(202);
+
+    const denied = await otherApp.request("/projects/project-1/jobs/job-9", {
+      headers: { cookie: "rw_session=other" }
+    });
+    expect(denied.status).toBe(404);
+    const deniedBody = await denied.json();
+    expect(deniedBody.error.code).toBe("run_not_found");
+  });
+
+  it("rejects run submission for archived project", async () => {
+    const runService = createRunService({
+      store: createMemoryRunStore(),
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Archived",
+            teamId: null,
+            deletedAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const app = createApp({ signupStore: buildAuthStore("user-1"), runService });
+    const response = await app.request("/projects/project-1/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: JSON.stringify({ text: "Test sentence" })
+    });
+
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.error.code).toBe("project_inactive");
+  });
 });

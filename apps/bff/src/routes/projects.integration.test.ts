@@ -131,4 +131,26 @@ describe("project route integration", () => {
     });
     expect(restoreResponse.status).toBe(200);
   });
+
+  it("denies cross-user project access", async () => {
+    const projectService = createProjectService(createMemoryProjectStore());
+    const ownerApp = createApp({ signupStore: buildAuthStore("user-1"), projectService });
+    const otherUserApp = createApp({ signupStore: buildAuthStore("user-2"), projectService });
+
+    const created = await ownerApp.request("/projects", {
+      method: "POST",
+      headers: { cookie: "rw_session=owner", "content-type": "application/json" },
+      body: JSON.stringify({ name: "Owner Project" })
+    });
+    expect(created.status).toBe(201);
+    const createdBody = await created.json();
+    const projectId = createdBody.project.id as string;
+
+    const otherGet = await otherUserApp.request(`/projects/${projectId}`, {
+      headers: { cookie: "rw_session=other" }
+    });
+    expect(otherGet.status).toBe(404);
+    const errorBody = await otherGet.json();
+    expect(errorBody.error.code).toBe("project_not_found");
+  });
 });
