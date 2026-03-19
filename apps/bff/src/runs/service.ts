@@ -15,6 +15,13 @@ export class RunNotFoundError extends Error {
   }
 }
 
+export class RunValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RunValidationError";
+  }
+}
+
 type RunServiceDeps = {
   store: RunStore;
   refweaver: RefweaverClient;
@@ -36,11 +43,19 @@ export function createRunService(deps: RunServiceDeps) {
     async submitRun(userId: string, projectId: string, text: string): Promise<RunRecord> {
       await assertActiveProject(deps.projects, userId, projectId);
 
-      const analyze = await deps.refweaver.analyze(userId, { text, includeMarkdown: true });
+      const normalizedText = text.trim();
+      if (!normalizedText) {
+        throw new RunValidationError("Run text is required");
+      }
+
+      const analyze = await deps.refweaver.analyze(userId, {
+        text: normalizedText,
+        includeMarkdown: true
+      });
       return deps.store.createRun({
         projectId,
         userId,
-        text,
+        text: normalizedText,
         status: analyze.status,
         refweaverRunId: analyze.runId,
         refweaverJobId: analyze.jobId
@@ -74,6 +89,16 @@ export function createRunService(deps: RunServiceDeps) {
       }
 
       const job = await deps.refweaver.getJob(userId, jobId);
+      if (job.userId !== userId) {
+        throw new RunNotFoundError();
+      }
+      if (job.jobId !== jobId) {
+        throw new RunNotFoundError();
+      }
+      if (job.runId && local.refweaverRunId && job.runId !== local.refweaverRunId) {
+        throw new RunNotFoundError();
+      }
+
       const updated = await deps.store.updateRunStatus(local.id, job.status, job.runId ?? local.refweaverRunId);
       if (!updated) {
         throw new RunNotFoundError();

@@ -27,8 +27,13 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
       return c.json({ error: { code: "validation_error", message: "Run text is required" } }, 422);
     }
 
+    const text = input.text.trim();
+    if (!text) {
+      return c.json({ error: { code: "validation_error", message: "Run text is required" } }, 422);
+    }
+
     try {
-      const run = await runService.submitRun(authUser.id, projectId, input.text);
+      const run = await runService.submitRun(authUser.id, projectId, text);
       return c.json({ run }, 202);
     } catch (error) {
       const mapped = toErrorResponse(error);

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createRunService, ProjectInactiveError, RunNotFoundError } from "./service";
+import {
+  createRunService,
+  ProjectInactiveError,
+  RunNotFoundError,
+  RunValidationError
+} from "./service";
 import type { RunStore, RefweaverClient, RunRecord, ProjectLookup } from "./types";
 
 function makeRecord(overrides: Partial<RunRecord> = {}): RunRecord {
@@ -67,10 +72,11 @@ describe("run service", () => {
     };
 
     const service = createRunService({ store, refweaver, projects });
-    const submitted = await service.submitRun("user-1", "project-1", "hello");
+    const submitted = await service.submitRun("user-1", "project-1", "  hello  ");
 
     expect(submitted.refweaverJobId).toBe("job-1");
     expect(created[0]?.projectId).toBe("project-1");
+    expect(created[0]?.text).toBe("hello");
   });
 
   it("rejects submissions for soft-deleted projects", async () => {
@@ -123,6 +129,59 @@ describe("run service", () => {
     );
   });
 
+  it("rejects submitRun when text is blank after trim", async () => {
+    let analyzeCalls = 0;
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return null;
+        },
+        async getRunByJobId() {
+          return null;
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          analyzeCalls += 1;
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          return { run: {}, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    await expect(service.submitRun("user-1", "project-1", "   \n\t ")).rejects.toBeInstanceOf(
+      RunValidationError
+    );
+    expect(analyzeCalls).toBe(0);
+  });
+
   it("polls job status and updates local lifecycle", async () => {
     const service = createRunService({
       store: {
@@ -147,10 +206,10 @@ describe("run service", () => {
           return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
         },
         async getJob() {
-          return { status: "finished", jobId: "job-1", userId: "user-1", runId: "up-run-2" };
+          return { status: "finished", jobId: "job-1", userId: "user-1", runId: "up-run-1" };
         },
         async getRun() {
-          return { run: { id: "up-run-2" }, sentences: [], verdicts: {}, evaluations: [] };
+          return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
         }
       },
       projects: {
@@ -170,7 +229,7 @@ describe("run service", () => {
 
     const result = await service.pollJob("user-1", "project-1", "job-1");
     expect(result.status).toBe("finished");
-    expect(result.run?.refweaverRunId).toBe("up-run-2");
+    expect(result.run?.refweaverRunId).toBe("up-run-1");
   });
 
   it("throws for missing run in project", async () => {
@@ -272,4 +331,164 @@ describe("run service", () => {
       RunNotFoundError
     );
   });
+
+  it("throws when upstream poll user id mismatches requested user", async () => {
+    let updated = false;
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return makeRecord();
+        },
+        async getRunByJobId() {
+          return makeRecord({ refweaverRunId: "up-run-1", refweaverJobId: "job-1" });
+        },
+        async updateRunStatus() {
+          updated = true;
+          return makeRecord();
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "finished", jobId: "job-1", userId: "user-2", runId: "up-run-1" };
+        },
+        async getRun() {
+          return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    await expect(service.pollJob("user-1", "project-1", "job-1")).rejects.toBeInstanceOf(
+      RunNotFoundError
+    );
+    expect(updated).toBe(false);
+  });
+
+  it("throws when upstream poll job id mismatches requested job", async () => {
+    let updated = false;
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return makeRecord();
+        },
+        async getRunByJobId() {
+          return makeRecord({ refweaverRunId: "up-run-1", refweaverJobId: "job-1" });
+        },
+        async updateRunStatus() {
+          updated = true;
+          return makeRecord();
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "finished", jobId: "job-2", userId: "user-1", runId: "up-run-1" };
+        },
+        async getRun() {
+          return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    await expect(service.pollJob("user-1", "project-1", "job-1")).rejects.toBeInstanceOf(
+      RunNotFoundError
+    );
+    expect(updated).toBe(false);
+  });
+
+  it("throws when upstream poll run id mismatches local linkage", async () => {
+    let updated = false;
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return makeRecord();
+        },
+        async getRunByJobId() {
+          return makeRecord({ refweaverRunId: "up-run-1", refweaverJobId: "job-1" });
+        },
+        async updateRunStatus() {
+          updated = true;
+          return makeRecord();
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "finished", jobId: "job-1", userId: "user-1", runId: "up-run-2" };
+        },
+        async getRun() {
+          return { run: { id: "up-run-2" }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    await expect(service.pollJob("user-1", "project-1", "job-1")).rejects.toBeInstanceOf(
+      RunNotFoundError
+    );
+    expect(updated).toBe(false);
+  });
+
 });
