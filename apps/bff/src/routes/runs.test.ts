@@ -174,4 +174,138 @@ describe("run routes", () => {
     const body = await response.json();
     expect(body.error.code).toBe("validation_error");
   });
+
+  it("returns validation error for malformed JSON body", async () => {
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun() {
+          throw new Error("unused");
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      }
+    });
+
+    const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: "{"
+    });
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+  });
+
+  it("returns validation error for non-string text", async () => {
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun() {
+          throw new Error("unused");
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      }
+    });
+
+    const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: JSON.stringify({ text: 123 })
+    });
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+  });
+
+  it("rejects blank run text after trim before submit", async () => {
+    let submitCalls = 0;
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun() {
+          submitCalls += 1;
+          throw new Error("unused");
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      }
+    });
+
+    const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: JSON.stringify({ text: "   \n\t  " })
+    });
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+    expect(submitCalls).toBe(0);
+  });
+
+  it("trims run text before submit", async () => {
+    let submittedText: string | null = null;
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun(_userId, _projectId, text) {
+          submittedText = text;
+          return {
+            id: "run-1",
+            projectId: "project-1",
+            userId: "user-1",
+            inputText: text,
+            status: "queued",
+            refweaverRunId: "up-run-1",
+            refweaverJobId: "job-1",
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      }
+    });
+
+    const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: JSON.stringify({ text: "  hello world  " })
+    });
+
+    expect(response.status).toBe(202);
+    expect(submittedText).toBe("hello world");
+  });
 });

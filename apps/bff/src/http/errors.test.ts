@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RefweaverHttpError, RefweaverNetworkError } from "../refweaver/client";
 import { ProjectNotFoundError, ProjectValidationError } from "../projects/service";
-import { ProjectInactiveError, RunNotFoundError } from "../runs/service";
+import { ProjectInactiveError, RunNotFoundError, RunValidationError } from "../runs/service";
 import { toErrorResponse } from "./errors";
 
 describe("toErrorResponse", () => {
@@ -9,6 +9,8 @@ describe("toErrorResponse", () => {
     expect(toErrorResponse(new ProjectValidationError("bad")).status).toBe(422);
     expect(toErrorResponse(new ProjectNotFoundError()).body.error.code).toBe("project_not_found");
     expect(toErrorResponse(new ProjectInactiveError()).body.error.code).toBe("project_inactive");
+    expect(toErrorResponse(new RunValidationError("bad run")).status).toBe(422);
+    expect(toErrorResponse(new RunValidationError("bad run")).body.error.code).toBe("validation_error");
     expect(toErrorResponse(new RunNotFoundError()).body.error.code).toBe("run_not_found");
   });
 

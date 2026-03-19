@@ -21,7 +21,9 @@ clients to send `X-User-Id` directly.
 
 ### Runs (project-scoped)
 
-- `POST /projects/:projectId/runs` with `{ "text": string }` submits analyze.
+- `POST /projects/:projectId/runs` with `{ "text": string }` submits analyze;
+  `text` is trimmed and must be non-empty after trim (`422 validation_error`
+  when blank).
 - `GET /projects/:projectId/runs` lists local run history for project.
 - `GET /projects/:projectId/runs/:runId` fetches one run record.
 - `GET /projects/:projectId/jobs/:jobId` polls async job and syncs local status.
@@ -35,10 +37,13 @@ Project/run endpoints normalize errors to:
   "error": {
     "code": "string",
     "message": "string",
-    "details": {}
+    "details": {"key": "value"}
   }
 }
 ```
+
+`error.details` is optional and may be `null` when no structured metadata is
+available.
 
 ## Base URL
 

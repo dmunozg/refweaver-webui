@@ -1,6 +1,6 @@
 import { RefweaverHttpError, RefweaverNetworkError } from "../refweaver/client";
 import { ProjectNotFoundError, ProjectValidationError } from "../projects/service";
-import { ProjectInactiveError, RunNotFoundError } from "../runs/service";
+import { ProjectInactiveError, RunNotFoundError, RunValidationError } from "../runs/service";
 
 type ErrorEnvelope = {
   error: {
@@ -42,6 +42,18 @@ export function toErrorResponse(error: unknown): { status: number; body: ErrorEn
         error: {
           code: "project_inactive",
           message: "Project is archived"
+        }
+      }
+    };
+  }
+
+  if (error instanceof RunValidationError) {
+    return {
+      status: 422,
+      body: {
+        error: {
+          code: "validation_error",
+          message: error.message
         }
       }
     };
