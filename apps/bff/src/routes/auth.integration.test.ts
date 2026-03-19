@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -14,7 +14,64 @@ const databaseUrl =
 
 const { db, client } = createDb(databaseUrl);
 
-async function applyMigrations() {
+type MigrationStatement = {
+  fileName: string;
+  statementIndex: number;
+  sql: string;
+};
+
+type MigrationJournalEntry = {
+  idx: number;
+  tag: string;
+};
+
+function getMigrationsDir() {
+  return join(
+    import.meta.dir,
+    "..",
+    "..",
+    "..",
+    "..",
+    "packages",
+    "db",
+    "migrations"
+  );
+}
+
+function getMigrationFilesFromJournal() {
+  const migrationsDir = getMigrationsDir();
+  const journalPath = join(migrationsDir, "meta", "_journal.json");
+  const journalSqlFiles = new Set(
+    readdirSync(migrationsDir)
+      .filter((entry) => entry.endsWith(".sql"))
+      .map((entry) => entry)
+  );
+
+  const journal = JSON.parse(readFileSync(journalPath, "utf8")) as {
+    entries?: MigrationJournalEntry[];
+  };
+
+  if (!Array.isArray(journal.entries)) {
+    throw new Error(
+      `Invalid migration journal at ${journalPath}: expected an entries array.`
+    );
+  }
+
+  return [...journal.entries]
+    .sort((left, right) => left.idx - right.idx)
+    .map(({ tag }) => `${tag}.sql`)
+    .map((fileName) => {
+      if (!journalSqlFiles.has(fileName)) {
+        throw new Error(
+          `Migration listed in journal is missing SQL file: ${fileName} (journal=${journalPath})`
+        );
+      }
+
+      return fileName;
+    });
+}
+
+function getMigrationStatements(fileName: string): MigrationStatement[] {
   const migrationPath = join(
     import.meta.dir,
     "..",
@@ -24,29 +81,52 @@ async function applyMigrations() {
     "packages",
     "db",
     "migrations",
-    "0000_nebulous_dreadnoughts.sql"
+    fileName
   );
 
   const sql = readFileSync(migrationPath, "utf8");
-  const statements = sql
+  return sql
     .split("--> statement-breakpoint")
     .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0);
+    .filter((statement) => statement.length > 0)
+    .map((statement, index) => ({
+      fileName,
+      statementIndex: index + 1,
+      sql: statement
+    }));
+}
+
+async function applyMigrations(fileNames: string[] = getMigrationFilesFromJournal()) {
+  const statements = fileNames.flatMap(getMigrationStatements);
 
   for (const statement of statements) {
     try {
-      await client.unsafe(statement);
+      await client.unsafe(statement.sql);
     } catch (error) {
-      const code = (error as { code?: string }).code;
-      if (code !== "42P07" && code !== "42710") {
-        throw error;
-      }
+      const pgError = error as { code?: string; message?: string };
+      const statementPreview = statement.sql
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 160);
+
+      throw new Error(
+        `Migration failed (${statement.fileName} statement ${statement.statementIndex}, code=${pgError.code ?? "unknown"}): ${pgError.message ?? "unknown error"}. SQL preview: ${statementPreview}`,
+        { cause: error }
+      );
     }
   }
 }
 
+async function resetDatabase() {
+  await client.unsafe("SET client_min_messages TO warning");
+  await client.unsafe("DROP SCHEMA IF EXISTS public CASCADE");
+  await client.unsafe("CREATE SCHEMA public");
+  await client.unsafe("CREATE EXTENSION IF NOT EXISTS pgcrypto");
+}
+
 describe("auth signup integration", () => {
   beforeAll(async () => {
+    await resetDatabase();
     await applyMigrations();
   });
 
@@ -204,5 +284,145 @@ describe("auth signup integration", () => {
       .from(sessions)
       .where(eq(sessions.sessionTokenHash, hashSessionToken(token)));
     expect(rows).toHaveLength(0);
+  });
+
+  it("enforces unique non-null refweaver job IDs per user", async () => {
+    const app = createApp({ signupStore: createSignupStore(db as never) });
+
+    const signupResponse = await app.request("/auth/signup", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        username: "grace",
+        email: "grace@example.com",
+        name: "Grace Hopper",
+        password: "safe-pass"
+      })
+    });
+
+    expect(signupResponse.status).toBe(201);
+    const body = await signupResponse.json();
+
+    await client.unsafe(
+      `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [body.projectId, body.userId, "first", "queued", "job-1"]
+    );
+
+    let duplicateError: { code?: string } | undefined;
+
+    try {
+      await client.unsafe(
+        `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [body.projectId, body.userId, "second", "queued", "job-1"]
+      );
+    } catch (error) {
+      duplicateError = error as { code?: string };
+    }
+
+    expect(duplicateError?.code).toBe("23505");
+
+    await client.unsafe(
+      `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [body.projectId, body.userId, "third", "queued", null]
+    );
+    await client.unsafe(
+      `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [body.projectId, body.userId, "fourth", "queued", null]
+    );
+  });
+
+  it("upgrades legacy duplicate refweaver job IDs before adding unique index", async () => {
+    await resetDatabase();
+    await applyMigrations(["0000_nebulous_dreadnoughts.sql"]);
+
+    await client.unsafe(
+      "ALTER TABLE projects ADD COLUMN deleted_at timestamp with time zone"
+    );
+
+    await client.unsafe(
+      `CREATE TABLE analysis_runs (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+        project_id uuid NOT NULL,
+        user_id uuid NOT NULL,
+        input_text text NOT NULL,
+        status text NOT NULL,
+        refweaver_run_id text,
+        refweaver_job_id text,
+        created_at timestamp with time zone DEFAULT now() NOT NULL,
+        updated_at timestamp with time zone DEFAULT now() NOT NULL
+      )`
+    );
+
+    await client.unsafe(
+      "ALTER TABLE analysis_runs ADD CONSTRAINT analysis_runs_project_id_projects_id_fk FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE cascade ON UPDATE no action"
+    );
+    await client.unsafe(
+      "ALTER TABLE analysis_runs ADD CONSTRAINT analysis_runs_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE cascade ON UPDATE no action"
+    );
+    await client.unsafe(
+      "CREATE INDEX analysis_runs_project_created_idx ON analysis_runs USING btree (project_id, created_at)"
+    );
+    await client.unsafe(
+      "CREATE INDEX analysis_runs_user_created_idx ON analysis_runs USING btree (user_id, created_at)"
+    );
+    await client.unsafe(
+      "CREATE INDEX analysis_runs_refweaver_job_legacy_idx ON analysis_runs USING btree (refweaver_job_id)"
+    );
+
+    const legacyUserId = "11111111-1111-1111-1111-111111111111";
+    const legacyProjectId = "22222222-2222-2222-2222-222222222222";
+
+    await client.unsafe(
+      `INSERT INTO users (id, username, email, name, password_hash)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [legacyUserId, "legacy-user", "legacy@example.com", "Legacy User", "hash"]
+    );
+    await client.unsafe(
+      `INSERT INTO projects (id, name, owner_user_id)
+       VALUES ($1, $2, $3)`,
+      [legacyProjectId, "Legacy Project", legacyUserId]
+    );
+
+    await client.unsafe(
+      `INSERT INTO analysis_runs
+       (id, project_id, user_id, input_text, status, refweaver_job_id, created_at, updated_at)
+       VALUES
+       ('00000000-0000-0000-0000-000000000001', $1, $2, 'first', 'queued', 'job-legacy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+       ('00000000-0000-0000-0000-000000000002', $1, $2, 'second', 'queued', 'job-legacy', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z')`,
+      [legacyProjectId, legacyUserId]
+    );
+
+    await applyMigrations(["0001_little_daimon_hellstrom.sql"]);
+
+    const dedupedRows = await client.unsafe<{ id: string; refweaver_job_id: string | null }[]>(
+      `SELECT id, refweaver_job_id
+       FROM analysis_runs
+       WHERE user_id = $1
+       ORDER BY id`,
+      [legacyUserId]
+    );
+
+    expect(dedupedRows).toEqual([
+      { id: "00000000-0000-0000-0000-000000000001", refweaver_job_id: "job-legacy" },
+      { id: "00000000-0000-0000-0000-000000000002", refweaver_job_id: null }
+    ]);
+
+    let duplicateInsertError: { code?: string } | undefined;
+
+    try {
+      await client.unsafe(
+        `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [legacyProjectId, legacyUserId, "third", "queued", "job-legacy"]
+      );
+    } catch (error) {
+      duplicateInsertError = error as { code?: string };
+    }
+
+    expect(duplicateInsertError?.code).toBe("23505");
   });
 });
