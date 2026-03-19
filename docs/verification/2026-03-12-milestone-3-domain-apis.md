@@ -25,7 +25,23 @@ podman compose -f compose.yml config
 - Run submission and polling via BFF with 1-sentence input: PASS (`202` submit, `200` poll with `finished`).
 - Operational note: inside compose containers, `REFWEAVER_API_BASE_URL` must target host-reachable DNS (`host.containers.internal`) rather than `localhost`.
 
-## Deferred migration-risk note
+## Migration safety remediation (PR 1)
 
-- Current branch still edits baseline migration `0000` due pre-persistent stage assumptions.
-- Before first shared/persistent deployment, convert this to additive forward migration(s) and freeze applied migration history.
+- Baseline migration `packages/db/migrations/0000_nebulous_dreadnoughts.sql` is now frozen to milestone-0 foundations only.
+- Milestone 3 schema changes now ship through forward migration `packages/db/migrations/0001_little_daimon_hellstrom.sql` (`projects.deleted_at`, `analysis_runs`, FK/index set).
+- Forward migration now deterministically de-dupes legacy duplicate (`user_id`, `refweaver_job_id`) rows by preserving the earliest row (`created_at`, then `id`) and nulling later duplicates before creating the unique index.
+- Deterministic per-user job lookup has DB enforcement via partial unique index `analysis_runs_user_job_unique_idx` on (`user_id`, `refweaver_job_id`) when `refweaver_job_id IS NOT NULL`.
+- Migration test harness now executes SQL files in Drizzle journal order (`packages/db/migrations/meta/_journal.json`) and fails loudly with file + statement diagnostics plus SQL preview for unexpected migration SQL errors.
+- Legacy-upgrade coverage now seeds a more realistic historical object footprint (pre-existing `projects.deleted_at`, analysis-runs FK/index objects, duplicate rows) before applying `0001`, then verifies deterministic dedupe + unique-index enforcement.
+
+### PR 1 verification commands
+
+```bash
+bun test packages/db/src/schema/schema.test.ts
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/refweaver_webui_test bun test apps/bff/src/routes/auth.integration.test.ts
+```
+
+### PR 1 verification results
+
+- DB schema unit tests: PASS (`3 pass`, `0 fail`).
+- Auth integration suite with true upgrade-path migration simulation + uniqueness assertions: PASS (`8 pass`, `0 fail`).
