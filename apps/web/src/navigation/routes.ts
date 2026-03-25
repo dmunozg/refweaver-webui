@@ -11,6 +11,14 @@ export type AnalysisRoute =
   | { kind: "list" }
   | { kind: "detail"; runId: string };
 
+function safeDecodePathSegment(segment: string): string | null {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+}
+
 export function parseAnalysisRoute(pathname: string | undefined): AnalysisRoute {
   const normalizedPathname = pathname && pathname.startsWith("/") ? pathname : "/";
 
@@ -28,7 +36,10 @@ export function parseAnalysisRoute(pathname: string | undefined): AnalysisRoute 
 
   const detailMatch = normalizedPathname.match(/^\/analyses\/([^/]+)$/);
   if (detailMatch) {
-    return { kind: "detail", runId: decodeURIComponent(detailMatch[1]) };
+    const runId = safeDecodePathSegment(detailMatch[1]);
+    if (runId !== null) {
+      return { kind: "detail", runId };
+    }
   }
 
   return { kind: "dashboard" };

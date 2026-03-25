@@ -19,6 +19,10 @@ describe("analysis routes", () => {
     expect(formatAnalysisRoute({ kind: "list" })).toBe(analysisRoutes.list);
     expect(formatAnalysisRoute({ kind: "detail", runId: "run-123" })).toBe("/analyses/run-123");
   });
+
+  it("falls back to dashboard when detail segments are malformed", () => {
+    expect(parseAnalysisRoute("/analyses/%E0%A4%A")).toEqual({ kind: "dashboard" });
+  });
 });
 
 describe("useRoute", () => {
