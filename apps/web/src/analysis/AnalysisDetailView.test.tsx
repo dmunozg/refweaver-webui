@@ -101,11 +101,12 @@ describe("AnalysisDetailView", () => {
     expect(mockedPollAnalysisRun).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(1000);
+      vi.advanceTimersByTime(1000);
       await Promise.resolve();
     });
 
     expect(mockedPollAnalysisRun).toHaveBeenCalledTimes(2);
+    expect(mockedGetRun).toHaveBeenCalledTimes(2);
     expect(getText(renderer)).toContain("finished");
   });
 

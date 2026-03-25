@@ -102,6 +102,14 @@ export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
       try {
         const nextRun = await pollAnalysisRun(projectId!, currentRun);
         if (isActive) {
+          if (nextRun.status === "finished") {
+            const refreshed = await getRun(projectId!, runId);
+            if (isActive) {
+              setState({ status: "ready", run: refreshed.run });
+            }
+            return;
+          }
+
           setState({ status: "ready", run: nextRun });
         }
       } catch {
