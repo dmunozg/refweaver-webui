@@ -2,6 +2,33 @@ import { describe, expect, it } from "vitest";
 import { createRunStore } from "./store";
 
 describe("run store", () => {
+  function buildQuery(rows: Array<Record<string, unknown>>, statusGroup: "all" | "terminal" | "in_progress" = "all") {
+    const terminalStatuses = new Set(["finished", "failed", "missing"]);
+    const filteredRows =
+      statusGroup === "terminal"
+        ? rows.filter((row) => terminalStatuses.has(String(row.status)))
+        : statusGroup === "in_progress"
+          ? rows.filter((row) => !terminalStatuses.has(String(row.status)))
+          : rows;
+
+    return {
+      orderBy() {
+        return {
+          limit(limit: number) {
+            return {
+              offset(offset: number) {
+                return filteredRows.slice(offset, offset + limit);
+              }
+            };
+          },
+          async then(resolve: (value: Array<Record<string, unknown>>) => void) {
+            resolve(filteredRows);
+          }
+        };
+      }
+    };
+  }
+
   it("filters terminal runs before paginating newest results", async () => {
     const rows = [
       {
@@ -63,11 +90,7 @@ describe("run store", () => {
           from() {
             return {
               where() {
-                return {
-                  async orderBy() {
-                    return rows;
-                  }
-                };
+                return buildQuery(rows, "terminal");
               }
             };
           }
@@ -124,14 +147,7 @@ describe("run store", () => {
           from() {
             return {
               where() {
-                  return {
-                    async orderBy() {
-                      return rows;
-                    },
-                    async limit() {
-                      return rows;
-                    }
-                  };
+                return buildQuery(rows, "all");
                 }
               };
             }
@@ -212,9 +228,21 @@ describe("run store", () => {
               where() {
                 return {
                   orderBy() {
-                    return [...rows].sort(
+                    const ordered = [...rows].sort(
                       (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
                     );
+                    return {
+                      limit(limit: number) {
+                        return {
+                          offset(offset: number) {
+                            return ordered.slice(offset, offset + limit);
+                          }
+                        };
+                      },
+                      then(resolve: (value: Array<Record<string, unknown>>) => void) {
+                        resolve(ordered);
+                      }
+                    };
                   }
                 };
               }

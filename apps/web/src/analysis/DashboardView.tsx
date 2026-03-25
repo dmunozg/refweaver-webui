@@ -34,6 +34,15 @@ function selectTerminalRuns(runs: AnalysisRunRecord[]) {
     .slice(0, terminalLimit);
 }
 
+function mergeTerminalRuns(currentRuns: AnalysisRunRecord[], updates: AnalysisRunRecord[]) {
+  const byId = new Map(currentRuns.map((run) => [run.id, run]));
+  for (const update of updates) {
+    byId.set(update.id, update);
+  }
+
+  return selectTerminalRuns(Array.from(byId.values()));
+}
+
 function DashboardRunList({ runs }: { runs: AnalysisRunRecord[] }) {
   return (
     <ul>
@@ -89,7 +98,7 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
 
     async function loadInProgressRuns() {
       try {
-        const response = await listRuns(projectId!, { page: 1, pageSize });
+        const response = await listRuns(projectId!, { page: 1, pageSize, statusGroup: "in_progress" });
         if (!isActive) {
           return;
         }
@@ -157,6 +166,13 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
           }
 
           return { ...current, runs: current.runs.map((run) => updatesById.get(run.id) ?? run) };
+        });
+        setTerminalRunsState((current) => {
+          if (current.status !== "ready") {
+            return current;
+          }
+
+          return { ...current, runs: mergeTerminalRuns(current.runs, updates) };
         });
 
         pollAttempt += 1;

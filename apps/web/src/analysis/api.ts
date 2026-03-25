@@ -25,6 +25,10 @@ function isRecord(input: unknown): input is Record<string, unknown> {
   return !!input && typeof input === "object";
 }
 
+function isPlainObject(input: unknown): input is Record<string, unknown> {
+  return isRecord(input) && !Array.isArray(input);
+}
+
 function isStringOrNull(value: unknown): value is string | null {
   return typeof value === "string" || value === null;
 }
@@ -49,14 +53,14 @@ function isRunRecord(input: unknown): input is AnalysisRunRecord {
 }
 
 function isUpstreamRunPayload(input: unknown): input is AnalysisUpstreamRunPayload {
-  if (!isRecord(input)) {
+  if (!isPlainObject(input)) {
     return false;
   }
 
   return (
-    isRecord(input.run) &&
+    isPlainObject(input.run) &&
     Array.isArray(input.sentences) &&
-    isRecord(input.verdicts) &&
+    isPlainObject(input.verdicts) &&
     Array.isArray(input.evaluations) &&
     (input.report === undefined || typeof input.report === "string")
   );

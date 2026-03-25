@@ -50,8 +50,22 @@ describe("DashboardView", () => {
     return renderer!;
   }
 
-  function getText(renderer: TestRenderer.ReactTestRenderer) {
-    return JSON.stringify(renderer.toJSON());
+  function getText(renderer: TestRenderer.ReactTestRenderer): string {
+    function collect(node: TestRenderer.ReactTestRendererJSON | TestRenderer.ReactTestRendererJSON[] | string | null): string {
+      if (node === null) {
+        return "";
+      }
+      if (typeof node === "string") {
+        return node;
+      }
+      if (Array.isArray(node)) {
+        return node.map(collect).join(" ");
+      }
+
+      return [node.children?.map(collect).join(" ") ?? ""].join(" ");
+    }
+
+    return collect(renderer.toJSON());
   }
 
   it("loads in-progress and terminal runs from separate queries", async () => {
@@ -103,12 +117,16 @@ describe("DashboardView", () => {
     const headings = renderer.root.findAllByType("h2").map((heading: { props: { children: unknown } }) => heading.props.children);
 
     expect(headings).toEqual(["In progress", "Past analyses"]);
-    expect(mockedListRuns).toHaveBeenNthCalledWith(1, "project-1", { page: 1, pageSize: 50 });
+    expect(mockedListRuns).toHaveBeenNthCalledWith(1, "project-1", {
+      page: 1,
+      pageSize: 50,
+      statusGroup: "in_progress"
+    });
     expect(mockedListRuns).toHaveBeenNthCalledWith(2, "project-1", {
       page: 1,
       pageSize: 5,
       statusGroup: "terminal"
-    } as any);
+    });
     expect(getText(renderer)).toContain("Older finished");
     expect(getText(renderer)).toContain("(no title)");
     expect(getText(renderer)).toContain("running");
@@ -143,7 +161,7 @@ describe("DashboardView", () => {
       page: 1,
       pageSize: 5,
       statusGroup: "terminal"
-    } as any);
+    });
     expect(text).toContain("Finished 1");
     expect(text).toContain("Finished 5");
     expect(text).not.toContain("Finished 6");
@@ -190,8 +208,9 @@ describe("DashboardView", () => {
       page: 1,
       pageSize: 5,
       statusGroup: "terminal"
-    } as any);
+    });
     expect(mockedPollAnalysisRun).toHaveBeenCalledWith("project-1", expect.objectContaining({ id: "run-1" }));
+    expect(getText(renderer)).toContain("finished");
   });
 
   it("shows failed and missing terminal statuses clearly", async () => {
@@ -229,7 +248,7 @@ describe("DashboardView", () => {
       page: 1,
       pageSize: 5,
       statusGroup: "terminal"
-    } as any);
+    });
     expect(text).toContain("failed");
     expect(text).toContain("failed");
     expect(text).not.toContain("missing");
