@@ -32,6 +32,12 @@ describe("AnalysisDetailView", () => {
         title: "Finished run",
         status: "finished",
         refweaverJobId: null
+      },
+      upstreamRun: {
+        run: { id: "up-run-1" },
+        sentences: ["s1"],
+        verdicts: { overall: "pass" },
+        evaluations: ["e1"]
       }
     } as never);
     mockedPollAnalysisRun.mockImplementation(async (_projectId, run) => run);
@@ -65,6 +71,8 @@ describe("AnalysisDetailView", () => {
     expect(getText(renderer)).toContain("Finished run");
     expect(getText(renderer)).toContain("finished");
     expect(renderer.root.findByType("time").props.dateTime).toBe("2026-03-25T10:00:00.000Z");
+    expect(getText(renderer)).toContain("Upstream payload");
+    expect(getText(renderer)).toContain("up-run-1");
   });
 
   it("polls in-progress runs until they reach a terminal state", async () => {

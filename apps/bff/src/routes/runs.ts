@@ -125,7 +125,7 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
     }
     try {
       const run = await runService.getRun(authUser.id, projectId, runId);
-      return c.json({ run }, 200);
+      return c.json(run, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);

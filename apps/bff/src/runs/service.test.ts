@@ -397,6 +397,67 @@ describe("run service", () => {
     expect(result.run?.refweaverRunId).toBe("up-run-1");
   });
 
+  it("includes the upstream run payload for finished runs with linked upstream ids", async () => {
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return makeRecord({ status: "finished", refweaverRunId: "up-run-1" });
+        },
+        async getRunByJobId() {
+          return null;
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          return {
+            run: { id: "up-run-1", status: "finished" },
+            sentences: ["s1"],
+            verdicts: { overall: "pass" },
+            evaluations: ["e1"]
+          };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const result = (await service.getRun("user-1", "project-1", "local-run-1")) as any;
+
+    expect(result.run.refweaverRunId).toBe("up-run-1");
+    expect(result.upstreamRun).toEqual({
+      run: { id: "up-run-1", status: "finished" },
+      sentences: ["s1"],
+      verdicts: { overall: "pass" },
+      evaluations: ["e1"]
+    });
+  });
+
   it("persists missing when upstream job is not found", async () => {
     let updatedArgs: { id: string; status: string; refweaverRunId: string | null | undefined } | null = null;
 

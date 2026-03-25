@@ -40,6 +40,11 @@ export type RunStore = {
   ): Promise<RunRecord | null>;
 };
 
+export type RunDetailResponse = {
+  run: RunRecord;
+  upstreamRun?: RunResponse;
+};
+
 export type RefweaverClient = {
   analyze(
     userId: string,

@@ -110,7 +110,7 @@ describe("run routes", () => {
             }
           };
         }
-      } satisfies ReturnType<typeof createRunService>
+      } as any
     });
 
     const createResponse = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -132,6 +132,79 @@ describe("run routes", () => {
       }
     );
     expect(jobResponse.status).toBe(200);
+  });
+
+  it("returns upstream payload with the local run detail response", async () => {
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun() {
+          return {
+            id: "run-1",
+            projectId: "project-1",
+            userId: "user-1",
+            title: null,
+            inputText: "hello",
+            status: "finished",
+            refweaverRunId: "up-run-1",
+            refweaverJobId: "job-1",
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRun() {
+          return {
+            run: {
+              id: "run-1",
+              projectId: "project-1",
+              userId: "user-1",
+              title: null,
+              inputText: "hello",
+              status: "finished",
+              refweaverRunId: "up-run-1",
+              refweaverJobId: "job-1",
+              createdAt: new Date(),
+              updatedAt: new Date()
+            },
+            upstreamRun: {
+              run: { id: "up-run-1" },
+              sentences: [],
+              verdicts: {},
+              evaluations: []
+            }
+          };
+        },
+        async pollJob() {
+          return {
+            status: "finished",
+            run: {
+              id: "run-1",
+              projectId: "project-1",
+              userId: "user-1",
+              title: null,
+              inputText: "hello",
+              status: "finished",
+              refweaverRunId: "up-run-1",
+              refweaverJobId: "job-1",
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          };
+        }
+      } as any
+    });
+
+    const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs/11111111-1111-4111-8111-111111111112", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.run.id).toBe("run-1");
+    expect(body.upstreamRun.run.id).toBe("up-run-1");
   });
 
   it("maps inactive project errors to normalized envelope", async () => {

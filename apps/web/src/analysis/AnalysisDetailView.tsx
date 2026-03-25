@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnalysisClientError, formatRunTitle, getRun } from "./api";
 import { formatAnalysisStatus, getPollingDelayMs, isTerminalRunStatus, pollAnalysisRun } from "./polling";
-import type { AnalysisRunRecord } from "./types";
+import type { AnalysisRunDetails } from "./types";
 import { useDefaultProject } from "../projects/use-default-project";
 
 type AnalysisDetailViewProps = {
@@ -11,7 +11,7 @@ type AnalysisDetailViewProps = {
 
 type DetailState =
   | { status: "loading" }
-  | { status: "ready"; run: AnalysisRunRecord }
+  | { status: "ready"; run: AnalysisRunDetails }
   | { status: "missing" }
   | { status: "error"; error: string };
 
@@ -61,7 +61,13 @@ export function AnalysisDetailView({ runId, onCreateNewAnalysis }: AnalysisDetai
           return;
         }
 
-        setState({ status: "ready", run: response.run });
+        setState({
+          status: "ready",
+          run: {
+            ...response.run,
+            ...(response.upstreamRun === undefined ? {} : { upstreamRun: response.upstreamRun })
+          }
+        });
       } catch (error) {
         if (!isActive) {
           return;
@@ -108,7 +114,13 @@ export function AnalysisDetailView({ runId, onCreateNewAnalysis }: AnalysisDetai
           if (nextRun.status === "finished") {
             const refreshed = await getRun(projectId!, runId);
             if (isActive) {
-              setState({ status: "ready", run: refreshed.run });
+              setState({
+                status: "ready",
+                run: {
+                  ...refreshed.run,
+                  ...(refreshed.upstreamRun === undefined ? {} : { upstreamRun: refreshed.upstreamRun })
+                }
+              });
             }
             return;
           }
@@ -189,6 +201,12 @@ export function AnalysisDetailView({ runId, onCreateNewAnalysis }: AnalysisDetai
           </dd>
         </div>
       </dl>
+      {state.run.upstreamRun ? (
+        <section>
+          <h2>Upstream payload</h2>
+          <pre>{JSON.stringify(state.run.upstreamRun, null, 2)}</pre>
+        </section>
+      ) : null}
       {isTerminalRunStatus(state.run.status) ? (
         <button type="button" onClick={onCreateNewAnalysis ?? (() => {})}>
           New analysis

@@ -11,8 +11,21 @@ export type AnalysisRunRecord = {
   updatedAt: string;
 };
 
+export type AnalysisUpstreamRunPayload = {
+  run: Record<string, unknown>;
+  sentences: unknown[];
+  verdicts: Record<string, unknown>;
+  evaluations: unknown[];
+  report?: string;
+};
+
+export type AnalysisRunDetails = AnalysisRunRecord & {
+  upstreamRun?: AnalysisUpstreamRunPayload;
+};
+
 export type AnalysisRunResponse = {
-  run: AnalysisRunRecord;
+  run: AnalysisRunDetails;
+  upstreamRun?: AnalysisUpstreamRunPayload;
 };
 
 export type AnalysisPagination = {

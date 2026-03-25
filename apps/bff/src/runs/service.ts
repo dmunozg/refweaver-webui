@@ -1,6 +1,6 @@
 import { ProjectNotFoundError } from "../projects/service";
 import { RefweaverHttpError } from "../refweaver/errors";
-import type { RunRecord, ProjectLookup, RefweaverClient, RunStore } from "./types";
+import type { RunRecord, ProjectLookup, RefweaverClient, RunStore, RunDetailResponse } from "./types";
 
 export class ProjectInactiveError extends Error {
   constructor() {
@@ -96,13 +96,19 @@ export function createRunService(deps: RunServiceDeps) {
       return deps.store.listRuns(userId, projectId, pagination);
     },
 
-    async getRun(userId: string, projectId: string, runId: string): Promise<RunRecord> {
+    async getRun(userId: string, projectId: string, runId: string): Promise<RunDetailResponse> {
       await assertActiveProject(deps.projects, userId, projectId);
       const run = await deps.store.getRunById(userId, projectId, runId);
       if (!run) {
         throw new RunNotFoundError();
       }
-      return run;
+
+      if (run.status !== "finished" || !run.refweaverRunId) {
+        return { run };
+      }
+
+      const upstreamRun = await deps.refweaver.getRun(userId, run.refweaverRunId);
+      return { run, upstreamRun };
     },
 
     async pollJob(

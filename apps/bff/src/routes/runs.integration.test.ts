@@ -175,6 +175,22 @@ describe("run route integration", () => {
     expect(poll.status).toBe(200);
     const pollBody = await poll.json();
     expect(pollBody.status).toBe("finished");
+
+    const detail = await app.request(
+      "/projects/40000000-0000-4000-8000-000000000001/runs/10000000-0000-4000-8000-000000000001",
+      {
+        headers: { cookie: "rw_session=known-token" }
+      }
+    );
+    expect(detail.status).toBe(200);
+    const detailBody = await detail.json();
+    expect(detailBody.run.status).toBe("finished");
+    expect(detailBody.upstreamRun).toEqual({
+      run: { id: "up-run-1", title: null },
+      sentences: [],
+      verdicts: {},
+      evaluations: []
+    });
   });
 
   it("marks a missing upstream job as missing in polls and history", async () => {

@@ -4,6 +4,7 @@ import type {
   AnalysisPagination,
   AnalysisRunListResponse,
   AnalysisRunRecord,
+  AnalysisUpstreamRunPayload,
   AnalysisRunResponse,
   CreateAnalysisRunInput,
   ListAnalysisRunsInput
@@ -47,12 +48,33 @@ function isRunRecord(input: unknown): input is AnalysisRunRecord {
   );
 }
 
+function isUpstreamRunPayload(input: unknown): input is AnalysisUpstreamRunPayload {
+  if (!isRecord(input)) {
+    return false;
+  }
+
+  return (
+    isRecord(input.run) &&
+    Array.isArray(input.sentences) &&
+    isRecord(input.verdicts) &&
+    Array.isArray(input.evaluations) &&
+    (input.report === undefined || typeof input.report === "string")
+  );
+}
+
 function parseRunResponse(input: unknown): AnalysisRunResponse {
   if (!isRecord(input) || !isRunRecord(input.run)) {
     throw new AnalysisClientError("unknown");
   }
 
-  return { run: input.run };
+  if (input.upstreamRun !== undefined && !isUpstreamRunPayload(input.upstreamRun)) {
+    throw new AnalysisClientError("unknown");
+  }
+
+  return {
+    run: input.run,
+    ...(input.upstreamRun === undefined ? {} : { upstreamRun: input.upstreamRun })
+  };
 }
 
 function parsePagination(input: unknown): AnalysisPagination {
