@@ -23,11 +23,11 @@ describe("AnalysisListView", () => {
     vi.resetAllMocks();
   });
 
-  async function renderView() {
+  async function renderView(onRunSelect?: (runId: string) => void) {
     let renderer: TestRenderer.ReactTestRenderer;
 
     await act(async () => {
-      renderer = TestRenderer.create(<AnalysisListView />);
+      renderer = TestRenderer.create(<AnalysisListView onRunSelect={onRunSelect} />);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -76,7 +76,7 @@ describe("AnalysisListView", () => {
     expect(renderer.root.findByType("h1").props.children).toBe("Analysis list");
     expect(getText(renderer)).toContain("Newest analysis");
     expect(getText(renderer)).toContain("Older analysis");
-    expect(renderer.root.findAllByType("strong").map((item) => item.props.children)).toEqual([
+    expect(renderer.root.findAllByType("strong").map((item: { props: { children: unknown } }) => item.props.children)).toEqual([
       "Newest analysis",
       "Older analysis"
     ]);
@@ -142,7 +142,7 @@ describe("AnalysisListView", () => {
     expect(getText(renderer)).toContain("Page 1");
 
     await act(async () => {
-      buttons().find((button) => button.props.children === "Next")?.props.onClick();
+      buttons().find((button: { props: { children: string } }) => button.props.children === "Next")?.props.onClick();
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -152,7 +152,7 @@ describe("AnalysisListView", () => {
     expect(getText(renderer)).toContain("Page two run");
 
     await act(async () => {
-      buttons().find((button) => button.props.children === "Previous")?.props.onClick();
+      buttons().find((button: { props: { children: string } }) => button.props.children === "Previous")?.props.onClick();
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -185,5 +185,37 @@ describe("AnalysisListView", () => {
 
     expect(getText(renderer)).toContain("(no title)");
     expect(renderer.root.findByProps({ "aria-label": "Status: failed" })).toBeDefined();
+  });
+
+  it("can select a run for detail navigation", async () => {
+    mockedListRuns.mockResolvedValueOnce({
+      runs: [
+        {
+          id: "run-1",
+          projectId: "project-1",
+          userId: "user-1",
+          title: "Open me",
+          inputText: "hello world",
+          status: "finished",
+          refweaverRunId: null,
+          refweaverJobId: null,
+          createdAt: "2026-03-25T10:00:00.000Z",
+          updatedAt: "2026-03-25T10:05:00.000Z"
+        }
+      ],
+      pagination: { page: 1, pageSize: 10, hasNext: false, hasPrevious: false }
+    });
+
+    const onRunSelect = vi.fn();
+    const renderer = await renderView(onRunSelect);
+    const runButton = renderer.root
+      .findAllByType("button")
+      .find((button: { findAllByType: (type: string) => Array<{ props: { children: unknown } }> }) => button.findAllByType("strong")[0]?.props.children === "Open me");
+
+    await act(async () => {
+      runButton?.props.onClick();
+    });
+
+    expect(onRunSelect).toHaveBeenCalledWith("run-1");
   });
 });

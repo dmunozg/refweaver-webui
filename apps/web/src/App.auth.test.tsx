@@ -18,6 +18,7 @@ import * as projectModule from "./projects/use-default-project";
 
 const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
 const mockedCreateRun = vi.spyOn(api, "createRun");
+const mockedGetRun = vi.spyOn(api, "getRun");
 const mockedListRuns = vi.spyOn(api, "listRuns");
 const mockedPollAnalysisRun = vi.spyOn(polling, "pollAnalysisRun");
 const mockedUseDefaultProject = vi.spyOn(projectModule, "useDefaultProject");
@@ -30,6 +31,20 @@ afterEach(() => {
 beforeEach(() => {
   installMockWindow("/");
   mockedUseDefaultProject.mockReturnValue({ status: "ready", projectId: "project-1" });
+  mockedGetRun.mockResolvedValue({
+    run: {
+      id: "run-1",
+      projectId: "project-1",
+      userId: "user-1",
+      title: "Detail run",
+      inputText: "hello world",
+      status: "finished",
+      refweaverRunId: null,
+      refweaverJobId: null,
+      createdAt: "2026-03-25T10:00:00.000Z",
+      updatedAt: "2026-03-25T10:05:00.000Z"
+    }
+  } as never);
   mockedListRuns.mockResolvedValue({
     runs: [],
     pagination: { page: 1, pageSize: 10, hasNext: false, hasPrevious: false }
@@ -121,6 +136,27 @@ describe("App auth shell", () => {
 
     expect(window.location.pathname).toBe(analysisRoutes.list);
     expect(renderer!.root.findByType("h1").props.children).toBe("Analysis list");
+  });
+
+  it("renders the analysis detail route", async () => {
+    window.history.replaceState({}, "", analysisRoutes.detail("run-1"));
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(renderer!.root.findByType("h1").props.children).toBe("Analysis detail");
+    expect(JSON.stringify(renderer!.toJSON())).toContain("Detail run");
   });
 
   it("returns to the dashboard after a new analysis is submitted successfully", async () => {

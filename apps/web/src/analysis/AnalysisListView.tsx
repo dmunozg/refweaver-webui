@@ -8,6 +8,10 @@ type AnalysisListState =
   | { status: "ready"; runs: AnalysisRunRecord[]; page: number; hasNext: boolean; hasPrevious: boolean; error: string | null }
   | { status: "error"; runs: AnalysisRunRecord[]; page: number; hasNext: boolean; hasPrevious: boolean; error: string | null };
 
+type AnalysisListViewProps = {
+  onRunSelect?: (runId: string) => void;
+};
+
 const pageSize = 10;
 
 function statusTone(status: string) {
@@ -18,7 +22,7 @@ function formatCreatedAt(createdAt: string) {
   return new Date(createdAt).toLocaleString();
 }
 
-export function AnalysisListView() {
+export function AnalysisListView({ onRunSelect }: AnalysisListViewProps) {
   const project = useDefaultProject();
   const [page, setPage] = useState(1);
   const projectId = project.status === "ready" ? project.projectId : null;
@@ -104,7 +108,13 @@ export function AnalysisListView() {
               <span aria-label={`Status: ${run.status}`} style={{ color: statusTone(run.status) }}>
                 ●
               </span>{" "}
-              <strong>{formatRunTitle(run.title)}</strong>
+              {onRunSelect ? (
+                <button type="button" onClick={() => onRunSelect(run.id)}>
+                  <strong>{formatRunTitle(run.title)}</strong>
+                </button>
+              ) : (
+                <strong>{formatRunTitle(run.title)}</strong>
+              )}
               <time dateTime={run.createdAt}>{formatCreatedAt(run.createdAt)}</time>
             </li>
           ))}
