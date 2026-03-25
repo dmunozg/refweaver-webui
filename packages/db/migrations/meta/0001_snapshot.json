@@ -39,6 +39,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "refweaver_run_id": {
           "name": "refweaver_run_id",
           "type": "text",
