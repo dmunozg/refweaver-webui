@@ -16,6 +16,8 @@ describe("schema", () => {
   it("includes analysis run tracking table", () => {
     expect(analysisRuns.projectId).toBeDefined();
     expect(analysisRuns.userId).toBeDefined();
+    expect(analysisRuns.title).toBeDefined();
+    expect(analysisRuns.title.notNull).toBe(false);
     expect(analysisRuns.refweaverRunId).toBeDefined();
     expect(analysisRuns.refweaverJobId).toBeDefined();
     expect(analysisRuns.status).toBeDefined();
