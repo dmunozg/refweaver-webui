@@ -63,9 +63,13 @@ export function createRunService(deps: RunServiceDeps) {
       });
     },
 
-    async listRuns(userId: string, projectId: string): Promise<RunRecord[]> {
+    async listRuns(
+      userId: string,
+      projectId: string,
+      pagination?: { limit: number; offset: number }
+    ): Promise<RunRecord[]> {
       await assertActiveProject(deps.projects, userId, projectId);
-      return deps.store.listRuns(userId, projectId);
+      return deps.store.listRuns(userId, projectId, pagination);
     },
 
     async getRun(userId: string, projectId: string, runId: string): Promise<RunRecord> {
