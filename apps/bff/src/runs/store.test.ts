@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { createRunStore } from "./store";
 
 describe("run store", () => {
-  it("creates run and lists scoped history", async () => {
+  it("persists title on create and list", async () => {
     const inserted: Record<string, unknown>[] = [];
     const rows = [
       {
         id: "run-1",
         projectId: "project-1",
         userId: "user-1",
+        title: "First analysis",
         inputText: "hello",
         status: "queued",
         refweaverRunId: "up-run-1",
@@ -58,6 +59,7 @@ describe("run store", () => {
     const created = await store.createRun({
       projectId: "project-1",
       userId: "user-1",
+      title: "First analysis",
       text: "hello",
       status: "queued",
       refweaverRunId: "up-run-1",
@@ -66,8 +68,92 @@ describe("run store", () => {
     const listed = await store.listRuns("user-1", "project-1");
 
     expect(created.id).toBe("run-1");
+    expect(created.title).toBe("First analysis");
     expect(listed).toHaveLength(1);
     expect(inserted[0]?.projectId).toBe("project-1");
+    expect(inserted[0]?.title).toBe("First analysis");
+  });
+
+  it("lists runs newest first with pagination", async () => {
+    const rows = [
+      {
+        id: "run-1",
+        projectId: "project-1",
+        userId: "user-1",
+        title: "Newest",
+        inputText: "new",
+        status: "queued",
+        refweaverRunId: null,
+        refweaverJobId: "job-1",
+        createdAt: new Date("2025-03-03T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-03T10:00:00.000Z")
+      },
+      {
+        id: "run-2",
+        projectId: "project-1",
+        userId: "user-1",
+        title: "Middle",
+        inputText: "mid",
+        status: "queued",
+        refweaverRunId: null,
+        refweaverJobId: "job-2",
+        createdAt: new Date("2025-03-02T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-02T10:00:00.000Z")
+      },
+      {
+        id: "run-3",
+        projectId: "project-1",
+        userId: "user-1",
+        title: "Oldest",
+        inputText: "old",
+        status: "queued",
+        refweaverRunId: null,
+        refweaverJobId: "job-3",
+        createdAt: new Date("2025-03-01T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-01T10:00:00.000Z")
+      }
+    ];
+
+    const db = {
+      insert() {
+        throw new Error("not used");
+      },
+      select() {
+        return {
+          from() {
+            return {
+              where() {
+                return {
+                  orderBy() {
+                    const sorted = [...rows].sort(
+                      (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
+                    );
+                    return {
+                      limit(limit: number) {
+                        return {
+                          offset(offset: number) {
+                            return sorted.slice(offset, offset + limit);
+                          }
+                        };
+                      }
+                    };
+                  }
+                };
+              }
+            };
+          }
+        };
+      },
+      update() {
+        throw new Error("not used");
+      }
+    };
+
+    const store = createRunStore(db as never);
+    const listed = await store.listRuns("user-1", "project-1", { limit: 2, offset: 1 });
+
+    expect(listed.map((run) => run.id)).toEqual(["run-2", "run-3"]);
+    expect(listed.map((run) => run.title)).toEqual(["Middle", "Oldest"]);
   });
 
   it("gets run by id and job id", async () => {

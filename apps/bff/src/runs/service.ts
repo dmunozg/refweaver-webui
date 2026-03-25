@@ -55,6 +55,7 @@ export function createRunService(deps: RunServiceDeps) {
       return deps.store.createRun({
         projectId,
         userId,
+        title: null,
         text: normalizedText,
         status: analyze.status,
         refweaverRunId: analyze.runId,

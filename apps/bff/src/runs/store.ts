@@ -16,6 +16,7 @@ export function createRunStore(db: Database): RunStore {
           .values({
             projectId: input.projectId,
             userId: input.userId,
+            title: input.title,
             inputText: input.text,
             status: input.status,
             refweaverRunId: input.refweaverRunId,
@@ -26,12 +27,15 @@ export function createRunStore(db: Database): RunStore {
       return row;
     },
 
-    async listRuns(userId: string, projectId: string) {
-      const rows = await db
+    async listRuns(userId: string, projectId: string, pagination?: { limit: number; offset: number }) {
+      const query = db
         .select()
         .from(analysisRuns)
         .where(and(eq(analysisRuns.userId, userId), eq(analysisRuns.projectId, projectId)))
         .orderBy(desc(analysisRuns.createdAt));
+      const rows = pagination
+        ? await query.limit(pagination.limit).offset(pagination.offset)
+        : await query;
       return castRuns(rows);
     },
 
