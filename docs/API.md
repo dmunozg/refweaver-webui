@@ -21,10 +21,12 @@ clients to send `X-User-Id` directly.
 
 ### Runs (project-scoped)
 
-- `POST /projects/:projectId/runs` with `{ "text": string }` submits analyze;
+- `POST /projects/:projectId/runs` with `{ "text": string, "title"?: string }` submits analyze;
   `text` is trimmed and must be non-empty after trim (`422 validation_error`
-  when blank).
-- `GET /projects/:projectId/runs` lists local run history for project.
+  when blank). `title` is optional and stored as `null` when blank after trim.
+- `GET /projects/:projectId/runs?page=1&page_size=10` lists local run history for project.
+  Results are newest-first and the response includes pagination metadata:
+  `page`, `pageSize`, `hasNext`, and `hasPrevious`.
 - `GET /projects/:projectId/runs/:runId` fetches one run record.
 - `GET /projects/:projectId/jobs/:jobId` polls async job and syncs local status.
 

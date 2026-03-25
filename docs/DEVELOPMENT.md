@@ -79,6 +79,16 @@ Milestone 3 BFF routes include:
 - Run lifecycle: `POST /projects/:projectId/runs`, `GET /projects/:projectId/runs`,
   `GET /projects/:projectId/runs/:runId`, and `GET /projects/:projectId/jobs/:jobId`
 
+Milestone 4 WebUI routes:
+- Dashboard: `/dashboard`
+- New analysis: `/analyses/new`
+- Analysis list: `/analyses` (paginated, 10 per page)
+- Analysis detail: `/analyses/:runId`
+
+Milestone 4 analysis submission rules:
+- Title is optional and saved as `(no title)` in the UI when blank
+- Text is required and trimmed before submit
+
 Run Web app:
 
 ```bash
