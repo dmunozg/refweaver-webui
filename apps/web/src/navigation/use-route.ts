@@ -4,11 +4,11 @@ import { formatAnalysisRoute, parseAnalysisRoute, type AnalysisRoute } from "./r
 type RouteState = {
   pathname: string;
   route: AnalysisRoute;
-  navigate: (pathname: string) => void;
+  navigate: (route: AnalysisRoute) => void;
 };
 
 function readPathname() {
-  return window.location.pathname;
+  return window.location?.pathname ?? "/";
 }
 
 export function useRoute(): RouteState {
@@ -23,8 +23,8 @@ export function useRoute(): RouteState {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  function navigate(nextPathname: string) {
-    const next = nextPathname.startsWith("/") ? nextPathname : formatAnalysisRoute(parseAnalysisRoute(nextPathname));
+  function navigate(nextRoute: AnalysisRoute) {
+    const next = formatAnalysisRoute(nextRoute);
     window.history.pushState({}, "", next);
     setPathname(next);
   }

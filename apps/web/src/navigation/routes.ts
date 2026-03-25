@@ -11,20 +11,22 @@ export type AnalysisRoute =
   | { kind: "list" }
   | { kind: "detail"; runId: string };
 
-export function parseAnalysisRoute(pathname: string): AnalysisRoute {
-  if (pathname === analysisRoutes.dashboard || pathname === "/") {
+export function parseAnalysisRoute(pathname: string | undefined): AnalysisRoute {
+  const normalizedPathname = pathname && pathname.startsWith("/") ? pathname : "/";
+
+  if (normalizedPathname === analysisRoutes.dashboard || normalizedPathname === "/") {
     return { kind: "dashboard" };
   }
 
-  if (pathname === analysisRoutes.new) {
+  if (normalizedPathname === analysisRoutes.new) {
     return { kind: "new" };
   }
 
-  if (pathname === analysisRoutes.list) {
+  if (normalizedPathname === analysisRoutes.list) {
     return { kind: "list" };
   }
 
-  const detailMatch = pathname.match(/^\/analyses\/([^/]+)$/);
+  const detailMatch = normalizedPathname.match(/^\/analyses\/([^/]+)$/);
   if (detailMatch) {
     return { kind: "detail", runId: decodeURIComponent(detailMatch[1]) };
   }

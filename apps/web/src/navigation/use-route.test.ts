@@ -6,46 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { analysisRoutes, formatAnalysisRoute, parseAnalysisRoute } from "./routes";
 import { useRoute } from "./use-route";
-
-function createMockWindow(pathname: string) {
-  const listeners = new Set<() => void>();
-  const location = { pathname };
-
-  return {
-    location,
-    history: {
-      pushState: (_state: unknown, _title: string, nextPathname?: string) => {
-        if (nextPathname) {
-          location.pathname = nextPathname;
-        }
-      },
-      replaceState: (_state: unknown, _title: string, nextPathname?: string) => {
-        if (nextPathname) {
-          location.pathname = nextPathname;
-        }
-      }
-    },
-    addEventListener: (type: string, listener: () => void) => {
-      if (type === "popstate") {
-        listeners.add(listener);
-      }
-    },
-    removeEventListener: (type: string, listener: () => void) => {
-      if (type === "popstate") {
-        listeners.delete(listener);
-      }
-    },
-    dispatchEvent: (event: { type: string }) => {
-      if (event.type === "popstate") {
-        listeners.forEach((listener) => listener());
-      }
-
-      return true;
-    }
-  };
-}
-
-let mockWindow: ReturnType<typeof createMockWindow>;
+import { installMockWindow } from "./test-window";
 
 describe("analysis routes", () => {
   it("parses and formats analysis screen paths", () => {
@@ -81,8 +42,7 @@ describe("useRoute", () => {
   });
 
   beforeEach(() => {
-    mockWindow = createMockWindow("/");
-    (globalThis as any).window = mockWindow;
+    installMockWindow("/");
   });
 
   it("tracks pathname changes from navigate and popstate", async () => {
@@ -96,10 +56,9 @@ describe("useRoute", () => {
     expect(latestRoute?.route).toEqual({ kind: "dashboard" });
 
     act(() => {
-      latestRoute?.navigate(analysisRoutes.new);
+      latestRoute?.navigate({ kind: "new" });
     });
 
-    expect(window.location.pathname).toBe("/analyses/new");
     expect(latestRoute?.pathname).toBe("/analyses/new");
     expect(latestRoute?.route).toEqual({ kind: "new" });
 

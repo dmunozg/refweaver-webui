@@ -11,48 +11,9 @@ import { useAuth } from "./auth/use-auth";
 import { App } from "./App";
 import { LoginForm } from "./auth/LoginForm";
 import { analysisRoutes } from "./navigation/routes";
+import { installMockWindow } from "./navigation/test-window";
 
 const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
-
-function createMockWindow(pathname: string) {
-  const listeners = new Set<() => void>();
-  const location = { pathname };
-
-  return {
-    location,
-    history: {
-      pushState: (_state: unknown, _title: string, nextPathname?: string) => {
-        if (nextPathname) {
-          location.pathname = nextPathname;
-        }
-      },
-      replaceState: (_state: unknown, _title: string, nextPathname?: string) => {
-        if (nextPathname) {
-          location.pathname = nextPathname;
-        }
-      }
-    },
-    addEventListener: (type: string, listener: () => void) => {
-      if (type === "popstate") {
-        listeners.add(listener);
-      }
-    },
-    removeEventListener: (type: string, listener: () => void) => {
-      if (type === "popstate") {
-        listeners.delete(listener);
-      }
-    },
-    dispatchEvent: (event: { type: string }) => {
-      if (event.type === "popstate") {
-        listeners.forEach((listener) => listener());
-      }
-
-      return true;
-    }
-  };
-}
-
-let mockWindow: ReturnType<typeof createMockWindow>;
 
 afterEach(() => {
   delete (globalThis as any).window;
@@ -60,8 +21,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
-  mockWindow = createMockWindow("/");
-  (globalThis as any).window = mockWindow;
+  installMockWindow("/");
 });
 
 describe("App auth shell", () => {
