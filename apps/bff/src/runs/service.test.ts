@@ -517,6 +517,114 @@ describe("run service", () => {
     });
   });
 
+  it("falls back to the local run when upstream detail lookup returns 404", async () => {
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return makeRecord({ status: "finished", refweaverRunId: "up-run-1" });
+        },
+        async getRunByJobId() {
+          return null;
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          throw new RefweaverHttpError(404, "not_found", "Missing", null);
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    await expect(service.getRun("user-1", "project-1", "local-run-1")).resolves.toEqual({
+      run: expect.objectContaining({
+        id: "local-run-1",
+        status: "finished",
+        refweaverRunId: "up-run-1"
+      })
+    });
+  });
+
+  it("falls back to the local run when upstream detail lookup errors transiently", async () => {
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return makeRecord({ status: "finished", refweaverRunId: "up-run-1" });
+        },
+        async getRunByJobId() {
+          return null;
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          throw new Error("temporary upstream failure");
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    await expect(service.getRun("user-1", "project-1", "local-run-1")).resolves.toEqual({
+      run: expect.objectContaining({
+        id: "local-run-1",
+        status: "finished",
+        refweaverRunId: "up-run-1"
+      })
+    });
+  });
+
   it("persists missing when upstream job is not found", async () => {
     let updatedArgs: { id: string; status: string; refweaverRunId: string | null | undefined } | null = null;
 

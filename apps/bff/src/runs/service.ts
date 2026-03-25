@@ -114,8 +114,12 @@ export function createRunService(deps: RunServiceDeps) {
         return { run };
       }
 
-      const upstreamRun = await deps.refweaver.getRun(userId, run.refweaverRunId);
-      return { run, upstreamRun };
+      try {
+        const upstreamRun = await deps.refweaver.getRun(userId, run.refweaverRunId);
+        return { run, upstreamRun };
+      } catch {
+        return { run };
+      }
     },
 
     async pollJob(
