@@ -9,11 +9,11 @@ type AuthStore = Parameters<typeof requireAuth>[0];
 
 type RunRouteContext = {
   get(name: "authUser"): unknown;
-  req: {
-    param(name: "projectId" | "runId" | "jobId"): string;
-    query(name: "page" | "page_size"): string | undefined;
-    json(): Promise<unknown>;
-  };
+    req: {
+      param(name: "projectId" | "runId" | "jobId"): string;
+      query(name: "page" | "page_size" | "status_group"): string | undefined;
+      json(): Promise<unknown>;
+    };
   json(body: unknown, status?: number): Response;
 };
 
@@ -88,11 +88,17 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
       return c.json({ error: { code: "validation_error", message: "Invalid page size" } }, 422);
     }
 
+    const statusGroup = c.req.query("status_group") ?? "all";
+    if (statusGroup !== "all" && statusGroup !== "terminal" && statusGroup !== "in_progress") {
+      return c.json({ error: { code: "validation_error", message: "Invalid status group" } }, 422);
+    }
+
     try {
       const requestedLimit = pageSize + 1;
       const runs = await runService.listRuns(authUser.id, projectId, {
         limit: requestedLimit,
-        offset: (page - 1) * pageSize
+        offset: (page - 1) * pageSize,
+        statusGroup
       });
       const hasNext = runs.length > pageSize;
       return c.json(

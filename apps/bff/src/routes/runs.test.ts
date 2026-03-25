@@ -464,7 +464,11 @@ describe("run routes", () => {
         async submitRun() {
           throw new Error("unused");
         },
-        async listRuns(_userId: string, _projectId: string, pagination?: { limit: number; offset: number }) {
+        async listRuns(
+          _userId: string,
+          _projectId: string,
+          pagination?: { limit: number; offset: number; statusGroup?: string }
+        ) {
           receivedPagination = pagination ?? null;
           return runs;
         },
@@ -485,9 +489,73 @@ describe("run routes", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(receivedPagination).toEqual({ limit: 6, offset: 5 });
+    expect(receivedPagination).toEqual({ limit: 6, offset: 5, statusGroup: "all" });
     const body = await response.json();
     expect(body.runs).toHaveLength(5);
     expect(body.pagination).toEqual({ page: 2, pageSize: 5, hasNext: true, hasPrevious: true });
+  });
+
+  it("rejects invalid status_group values", async () => {
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun() {
+          throw new Error("unused");
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      } satisfies ReturnType<typeof createRunService>
+    });
+
+    const response = await app.request(
+      "/projects/11111111-1111-4111-8111-111111111111/runs?status_group=oldest",
+      {
+        headers: { cookie: "rw_session=known-token" }
+      }
+    );
+
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error.code).toBe("validation_error");
+  });
+
+  it("forwards status_group to the run service", async () => {
+    let receivedPagination: { limit: number; offset: number; statusGroup?: string } | null = null;
+
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun() {
+          throw new Error("unused");
+        },
+        async listRuns(_userId: string, _projectId: string, pagination?: { limit: number; offset: number; statusGroup?: string }) {
+          receivedPagination = pagination ?? null;
+          return [];
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      } satisfies ReturnType<typeof createRunService>
+    });
+
+    const response = await app.request(
+      "/projects/11111111-1111-4111-8111-111111111111/runs?status_group=terminal&page=3&page_size=4",
+      {
+        headers: { cookie: "rw_session=known-token" }
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(receivedPagination).toEqual({ limit: 5, offset: 8, statusGroup: "terminal" });
   });
 });

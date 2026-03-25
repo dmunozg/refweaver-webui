@@ -2,6 +2,93 @@ import { describe, expect, it } from "vitest";
 import { createRunStore } from "./store";
 
 describe("run store", () => {
+  it("filters terminal runs before paginating newest results", async () => {
+    const rows = [
+      {
+        id: "run-1",
+        projectId: "project-1",
+        userId: "user-1",
+        title: "Newest in progress",
+        inputText: "new",
+        status: "started",
+        refweaverRunId: null,
+        refweaverJobId: "job-1",
+        createdAt: new Date("2025-03-04T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-04T10:00:00.000Z")
+      },
+      {
+        id: "run-2",
+        projectId: "project-1",
+        userId: "user-1",
+        title: "Newest terminal",
+        inputText: "terminal-1",
+        status: "finished",
+        refweaverRunId: null,
+        refweaverJobId: "job-2",
+        createdAt: new Date("2025-03-03T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-03T10:00:00.000Z")
+      },
+      {
+        id: "run-3",
+        projectId: "project-1",
+        userId: "user-1",
+        title: "Middle terminal",
+        inputText: "terminal-2",
+        status: "failed",
+        refweaverRunId: null,
+        refweaverJobId: "job-3",
+        createdAt: new Date("2025-03-02T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-02T10:00:00.000Z")
+      },
+      {
+        id: "run-4",
+        projectId: "project-1",
+        userId: "user-1",
+        title: "Oldest terminal",
+        inputText: "terminal-3",
+        status: "missing",
+        refweaverRunId: null,
+        refweaverJobId: "job-4",
+        createdAt: new Date("2025-03-01T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-01T10:00:00.000Z")
+      }
+    ];
+
+    const db = {
+      insert() {
+        throw new Error("not used");
+      },
+      select() {
+        return {
+          from() {
+            return {
+              where() {
+                return {
+                  async orderBy() {
+                    return rows;
+                  }
+                };
+              }
+            };
+          }
+        };
+      },
+      update() {
+        throw new Error("not used");
+      }
+    };
+
+    const store = createRunStore(db as never);
+    const listed = await store.listRuns("user-1", "project-1", {
+      limit: 2,
+      offset: 0,
+      statusGroup: "terminal"
+    });
+
+    expect(listed.map((run) => run.id)).toEqual(["run-2", "run-3"]);
+    expect(listed.map((run) => run.status)).toEqual(["finished", "failed"]);
+  });
+
   it("persists title on create and list", async () => {
     const inserted: Record<string, unknown>[] = [];
     const rows = [
@@ -37,17 +124,17 @@ describe("run store", () => {
           from() {
             return {
               where() {
-                return {
-                  async orderBy() {
-                    return rows;
-                  },
-                  async limit() {
-                    return rows;
-                  }
-                };
-              }
-            };
-          }
+                  return {
+                    async orderBy() {
+                      return rows;
+                    },
+                    async limit() {
+                      return rows;
+                    }
+                  };
+                }
+              };
+            }
         };
       },
       update() {
@@ -125,18 +212,9 @@ describe("run store", () => {
               where() {
                 return {
                   orderBy() {
-                    const sorted = [...rows].sort(
+                    return [...rows].sort(
                       (left, right) => right.createdAt.getTime() - left.createdAt.getTime()
                     );
-                    return {
-                      limit(limit: number) {
-                        return {
-                          offset(offset: number) {
-                            return sorted.slice(offset, offset + limit);
-                          }
-                        };
-                      }
-                    };
                   }
                 };
               }

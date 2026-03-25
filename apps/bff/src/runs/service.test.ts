@@ -25,6 +25,65 @@ function makeRecord(overrides: Partial<RunRecord> = {}): RunRecord {
 }
 
 describe("run service", () => {
+  it("passes status group filters through when listing runs", async () => {
+    let receivedPagination: { limit: number; offset: number; statusGroup?: string } | null = null;
+
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns(_userId, _projectId, pagination) {
+          receivedPagination = pagination ?? null;
+          return [makeRecord({ status: "finished" })];
+        },
+        async getRunById() {
+          return null;
+        },
+        async getRunByJobId() {
+          return null;
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          return { run: {}, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const runs = await service.listRuns("user-1", "project-1", {
+      limit: 6,
+      offset: 0,
+      statusGroup: "terminal"
+    });
+
+    expect(receivedPagination).toEqual({ limit: 6, offset: 0, statusGroup: "terminal" });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.status).toBe("finished");
+  });
+
   it("submits analyze request and persists lifecycle ids", async () => {
     const created: Array<{ projectId: string; userId: string; text: string }> = [];
 
@@ -33,9 +92,9 @@ describe("run service", () => {
         created.push(input);
         return makeRecord({ inputText: input.text });
       },
-      async listRuns() {
-        return [makeRecord()];
-      },
+       async listRuns() {
+         return [makeRecord()];
+       },
       async getRunById() {
         return makeRecord();
       },

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { createRunService } from "../runs/service";
 import type { AuthStore } from "../auth/store";
-import type { RunRecord, RunStore } from "../runs/types";
+import { TERMINAL_RUN_STATUSES, type RunRecord, type RunStore } from "../runs/types";
 import { RefweaverHttpError } from "../refweaver/errors";
 
 function buildAuthStore(userId = "user-1"): AuthStore {
@@ -72,11 +72,17 @@ function createMemoryRunStore(): RunStore {
       const sorted = Array.from(rows.values())
         .filter((row) => row.userId === userId && row.projectId === projectId)
         .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+      const filtered =
+        pagination?.statusGroup === "terminal"
+          ? sorted.filter((row) => TERMINAL_RUN_STATUSES.includes(row.status as (typeof TERMINAL_RUN_STATUSES)[number]))
+          : pagination?.statusGroup === "in_progress"
+            ? sorted.filter((row) => !TERMINAL_RUN_STATUSES.includes(row.status as (typeof TERMINAL_RUN_STATUSES)[number]))
+            : sorted;
       if (!pagination) {
-        return sorted;
+        return filtered;
       }
 
-      return sorted.slice(pagination.offset, pagination.offset + pagination.limit);
+      return filtered.slice(pagination.offset, pagination.offset + pagination.limit);
     },
     async getRunById(userId, projectId, runId) {
       const row = rows.get(runId) ?? null;
@@ -103,6 +109,41 @@ function createMemoryRunStore(): RunStore {
       }
       row.updatedAt = new Date();
       return row;
+    }
+  };
+}
+
+function createSeededRunStore(seed: RunRecord[]): RunStore {
+  const rows = [...seed];
+
+  return {
+    async createRun() {
+      throw new Error("not used");
+    },
+    async listRuns(userId, projectId, pagination) {
+      const sorted = rows
+        .filter((row) => row.userId === userId && row.projectId === projectId)
+        .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+      const filtered =
+        pagination?.statusGroup === "terminal"
+          ? sorted.filter((row) => TERMINAL_RUN_STATUSES.includes(row.status as (typeof TERMINAL_RUN_STATUSES)[number]))
+          : pagination?.statusGroup === "in_progress"
+            ? sorted.filter((row) => !TERMINAL_RUN_STATUSES.includes(row.status as (typeof TERMINAL_RUN_STATUSES)[number]))
+            : sorted;
+      if (!pagination) {
+        return filtered;
+      }
+
+      return filtered.slice(pagination.offset, pagination.offset + pagination.limit);
+    },
+    async getRunById() {
+      return null;
+    },
+    async getRunByJobId() {
+      return null;
+    },
+    async updateRunStatus() {
+      return null;
     }
   };
 }
@@ -310,6 +351,135 @@ describe("run route integration", () => {
     const body = await list.json();
 
     expect(body.runs.map((run: { title: string | null }) => run.title)).toEqual(["Newest", "Older"]);
+  });
+
+  it("returns the newest terminal runs when filtering the list", async () => {
+    const seededRows: RunRecord[] = [
+      {
+        id: "run-1",
+        projectId: "40000000-0000-4000-8000-000000000001",
+        userId: "user-1",
+        title: "Newest in progress",
+        inputText: "n1",
+        status: "started",
+        refweaverRunId: null,
+        refweaverJobId: "job-1",
+        createdAt: new Date("2025-03-10T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-10T10:00:00.000Z")
+      },
+      {
+        id: "run-2",
+        projectId: "40000000-0000-4000-8000-000000000001",
+        userId: "user-1",
+        title: "Newest terminal",
+        inputText: "t1",
+        status: "finished",
+        refweaverRunId: null,
+        refweaverJobId: "job-2",
+        createdAt: new Date("2025-03-09T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-09T10:00:00.000Z")
+      },
+      {
+        id: "run-3",
+        projectId: "40000000-0000-4000-8000-000000000001",
+        userId: "user-1",
+        title: "Middle in progress",
+        inputText: "n2",
+        status: "started",
+        refweaverRunId: null,
+        refweaverJobId: "job-3",
+        createdAt: new Date("2025-03-08T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-08T10:00:00.000Z")
+      },
+      {
+        id: "run-4",
+        projectId: "40000000-0000-4000-8000-000000000001",
+        userId: "user-1",
+        title: "Older terminal",
+        inputText: "t2",
+        status: "failed",
+        refweaverRunId: null,
+        refweaverJobId: "job-4",
+        createdAt: new Date("2025-03-07T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-07T10:00:00.000Z")
+      },
+      {
+        id: "run-5",
+        projectId: "40000000-0000-4000-8000-000000000001",
+        userId: "user-1",
+        title: "Oldest terminal",
+        inputText: "t3",
+        status: "missing",
+        refweaverRunId: null,
+        refweaverJobId: "job-5",
+        createdAt: new Date("2025-03-06T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-06T10:00:00.000Z")
+      },
+      {
+        id: "run-6",
+        projectId: "40000000-0000-4000-8000-000000000001",
+        userId: "user-1",
+        title: "Oldest in progress",
+        inputText: "n3",
+        status: "queued",
+        refweaverRunId: null,
+        refweaverJobId: "job-6",
+        createdAt: new Date("2025-03-05T10:00:00.000Z"),
+        updatedAt: new Date("2025-03-05T10:00:00.000Z")
+      }
+    ];
+
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: createRunService({
+        store: createSeededRunStore(seededRows),
+        refweaver: {
+          async analyze() {
+            return {
+              runId: "up-run-1",
+              status: "queued",
+              jobId: "job-1",
+              jobUrl: "/jobs/job-1"
+            };
+          },
+          async getJob() {
+            return { status: "started", jobId: "job-1", userId: "user-1" };
+          },
+          async getRun() {
+            return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
+          }
+        },
+        projects: {
+          async getProject(ownerUserId, projectId) {
+            return {
+              id: projectId,
+              ownerUserId,
+              name: "Project",
+              teamId: null,
+              deletedAt: null,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            };
+          }
+        }
+      })
+    });
+
+    const response = await app.request(
+      "/projects/40000000-0000-4000-8000-000000000001/runs?status_group=terminal&page_size=5",
+      {
+        headers: { cookie: "rw_session=known-token" }
+      }
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.runs.map((run: { title: string }) => run.title)).toEqual([
+      "Newest terminal",
+      "Older terminal",
+      "Oldest terminal"
+    ]);
+    expect(body.pagination).toEqual({ page: 1, pageSize: 5, hasNext: false, hasPrevious: false });
   });
 
   it("denies cross-user run access", async () => {

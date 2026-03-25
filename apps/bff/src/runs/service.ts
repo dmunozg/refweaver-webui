@@ -1,6 +1,13 @@
 import { ProjectNotFoundError } from "../projects/service";
 import { RefweaverHttpError } from "../refweaver/errors";
-import type { RunRecord, ProjectLookup, RefweaverClient, RunStore, RunDetailResponse } from "./types";
+import type {
+  RunRecord,
+  ProjectLookup,
+  RefweaverClient,
+  RunStore,
+  RunDetailResponse,
+  RunStatusGroup
+} from "./types";
 
 export class ProjectInactiveError extends Error {
   constructor() {
@@ -90,7 +97,7 @@ export function createRunService(deps: RunServiceDeps) {
     async listRuns(
       userId: string,
       projectId: string,
-      pagination?: { limit: number; offset: number }
+      pagination?: { limit: number; offset: number; statusGroup?: RunStatusGroup }
     ): Promise<RunRecord[]> {
       await assertActiveProject(deps.projects, userId, projectId);
       return deps.store.listRuns(userId, projectId, pagination);

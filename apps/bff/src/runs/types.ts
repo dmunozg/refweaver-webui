@@ -1,6 +1,10 @@
 import type { JobResponse, RunResponse } from "../refweaver/types";
 import type { ProjectRecord } from "../projects/types";
 
+export type RunStatusGroup = "all" | "terminal" | "in_progress";
+
+export const TERMINAL_RUN_STATUSES = ["finished", "failed", "missing"] as const;
+
 export type RunRecord = {
   id: string;
   projectId: string;
@@ -29,7 +33,7 @@ export type RunStore = {
   listRuns(
     userId: string,
     projectId: string,
-    pagination?: { limit: number; offset: number }
+    pagination?: { limit: number; offset: number; statusGroup?: RunStatusGroup }
   ): Promise<RunRecord[]>;
   getRunById(userId: string, projectId: string, runId: string): Promise<RunRecord | null>;
   getRunByJobId(userId: string, projectId: string, jobId: string): Promise<RunRecord | null>;

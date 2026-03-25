@@ -1,10 +1,28 @@
 import { and, desc, eq } from "drizzle-orm";
 import { analysisRuns } from "@refweaver/db";
 import type { Database } from "@refweaver/db";
-import type { RunCreateInput, RunRecord, RunStore } from "./types";
+import {
+  TERMINAL_RUN_STATUSES,
+  type RunCreateInput,
+  type RunRecord,
+  type RunStore,
+  type RunStatusGroup
+} from "./types";
 
 function castRuns(rows: Array<Record<string, unknown>>): RunRecord[] {
   return rows as RunRecord[];
+}
+
+function filterRunsByStatusGroup(runs: RunRecord[], statusGroup: RunStatusGroup): RunRecord[] {
+  if (statusGroup === "all") {
+    return runs;
+  }
+
+  if (statusGroup === "terminal") {
+    return runs.filter((run) => TERMINAL_RUN_STATUSES.includes(run.status as (typeof TERMINAL_RUN_STATUSES)[number]));
+  }
+
+  return runs.filter((run) => !TERMINAL_RUN_STATUSES.includes(run.status as (typeof TERMINAL_RUN_STATUSES)[number]));
 }
 
 export function createRunStore(db: Database): RunStore {
@@ -27,16 +45,25 @@ export function createRunStore(db: Database): RunStore {
       return row;
     },
 
-    async listRuns(userId: string, projectId: string, pagination?: { limit: number; offset: number }) {
-      const query = db
-        .select()
-        .from(analysisRuns)
-        .where(and(eq(analysisRuns.userId, userId), eq(analysisRuns.projectId, projectId)))
-        .orderBy(desc(analysisRuns.createdAt));
-      const rows = pagination
-        ? await query.limit(pagination.limit).offset(pagination.offset)
-        : await query;
-      return castRuns(rows);
+    async listRuns(
+      userId: string,
+      projectId: string,
+      pagination?: { limit: number; offset: number; statusGroup?: RunStatusGroup }
+    ) {
+      const rows = castRuns(
+        await db
+          .select()
+          .from(analysisRuns)
+          .where(and(eq(analysisRuns.userId, userId), eq(analysisRuns.projectId, projectId)))
+          .orderBy(desc(analysisRuns.createdAt))
+      );
+
+      const filtered = filterRunsByStatusGroup(rows, pagination?.statusGroup ?? "all");
+      if (!pagination) {
+        return filtered;
+      }
+
+      return filtered.slice(pagination.offset, pagination.offset + pagination.limit);
     },
 
     async getRunById(userId: string, projectId: string, runId: string) {
