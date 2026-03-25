@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
+import { createRunService } from "../runs/service";
+import type { AuthStore } from "../auth/store";
 
-function buildAuthStore() {
+function buildAuthStore(): AuthStore {
   return {
     async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
       return fn(this);
@@ -19,15 +21,27 @@ function buildAuthStore() {
       return null;
     },
     async findUserById() {
-      return { id: "user-1", username: "ada", email: "ada@example.com", name: "Ada", teamId: null };
+      return {
+        id: "user-1",
+        username: "ada",
+        email: "ada@example.com",
+        name: "Ada",
+        passwordHash: "hash",
+        teamId: null
+      };
     },
     async findSessionByTokenHash() {
-      return { id: "session-1", userId: "user-1", expiresAt: new Date(Date.now() + 60_000) };
+      return {
+        id: "session-1",
+        userId: "user-1",
+        sessionTokenHash: "hash",
+        expiresAt: new Date(Date.now() + 60_000)
+      };
     },
     async deleteSessionByTokenHash() {
       return;
     }
-  } as any;
+  };
 }
 
 describe("run routes", () => {
@@ -55,6 +69,7 @@ describe("run routes", () => {
               id: "run-1",
               projectId: "project-1",
               userId: "user-1",
+              title: null,
               inputText: "hello",
               status: "queued",
               refweaverRunId: "up-run-1",
@@ -69,6 +84,7 @@ describe("run routes", () => {
             id: "run-1",
             projectId: "project-1",
             userId: "user-1",
+            title: null,
             inputText: "hello",
             status: "finished",
             refweaverRunId: "up-run-1",
@@ -84,6 +100,7 @@ describe("run routes", () => {
               id: "run-1",
               projectId: "project-1",
               userId: "user-1",
+              title: null,
               inputText: "hello",
               status: "finished",
               refweaverRunId: "up-run-1",
@@ -93,7 +110,7 @@ describe("run routes", () => {
             }
           };
         }
-      } as any
+      } satisfies ReturnType<typeof createRunService>
     });
 
     const createResponse = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -134,7 +151,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      } as any
+      } satisfies ReturnType<typeof createRunService>
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -164,7 +181,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      } as any
+      } satisfies ReturnType<typeof createRunService>
     });
 
     const response = await app.request("/projects/not-a-uuid/runs", {
@@ -192,7 +209,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      } as any
+      } satisfies ReturnType<typeof createRunService>
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -254,7 +271,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      } as any
+      } satisfies ReturnType<typeof createRunService>
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -298,7 +315,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      } as any
+      } satisfies ReturnType<typeof createRunService>
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -340,7 +357,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      } as any
+      } satisfies ReturnType<typeof createRunService>
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -384,7 +401,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      } as any
+      } satisfies ReturnType<typeof createRunService>
     });
 
     const response = await app.request(

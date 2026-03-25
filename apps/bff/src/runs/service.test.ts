@@ -128,7 +128,7 @@ describe("run service", () => {
       }
     });
 
-    const submitted = await (service.submitRun as any)(
+    const submitted = await service.submitRun(
       "user-1",
       "project-1",
       "  hello  ",
@@ -187,7 +187,7 @@ describe("run service", () => {
       }
     });
 
-    const submitted = await (service.submitRun as any)("user-1", "project-1", "hello", "   \n\t  ");
+    const submitted = await service.submitRun("user-1", "project-1", "hello", "   \n\t  ");
 
     expect(created[0]?.title).toBeNull();
     expect(submitted.title).toBeNull();
@@ -238,9 +238,9 @@ describe("run service", () => {
       }
     });
 
-    await expect(
-      (service.submitRun as any)("user-1", "project-1", "hello", "x".repeat(121))
-    ).rejects.toBeInstanceOf(RunValidationError);
+    await expect(service.submitRun("user-1", "project-1", "hello", "x".repeat(121))).rejects.toBeInstanceOf(
+      RunValidationError
+    );
   });
 
   it("rejects submissions for soft-deleted projects", async () => {

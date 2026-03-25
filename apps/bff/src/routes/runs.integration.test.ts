@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { createRunService } from "../runs/service";
+import type { AuthStore } from "../auth/store";
 import type { RunRecord, RunStore } from "../runs/types";
 
-function buildAuthStore(userId = "user-1") {
+function buildAuthStore(userId = "user-1"): AuthStore {
   return {
     async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
       return fn(this);
@@ -21,15 +22,27 @@ function buildAuthStore(userId = "user-1") {
       return null;
     },
     async findUserById() {
-      return { id: userId, username: "ada", email: "ada@example.com", name: "Ada", teamId: null };
+      return {
+        id: userId,
+        username: "ada",
+        email: "ada@example.com",
+        name: "Ada",
+        passwordHash: "hash",
+        teamId: null
+      };
     },
     async findSessionByTokenHash() {
-      return { id: "session-1", userId, expiresAt: new Date(Date.now() + 60_000) };
+      return {
+        id: "session-1",
+        userId,
+        sessionTokenHash: "hash",
+        expiresAt: new Date(Date.now() + 60_000)
+      };
     },
     async deleteSessionByTokenHash() {
       return;
     }
-  } as any;
+  };
 }
 
 function createMemoryRunStore(): RunStore {
@@ -54,11 +67,15 @@ function createMemoryRunStore(): RunStore {
       rows.set(row.id, row);
       return row;
     },
-    async listRuns(userId, projectId) {
+    async listRuns(userId, projectId, pagination) {
       const sorted = Array.from(rows.values())
         .filter((row) => row.userId === userId && row.projectId === projectId)
         .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
-      return sorted;
+      if (!pagination) {
+        return sorted;
+      }
+
+      return sorted.slice(pagination.offset, pagination.offset + pagination.limit);
     },
     async getRunById(userId, projectId, runId) {
       const row = rows.get(runId) ?? null;
@@ -111,7 +128,7 @@ describe("run route integration", () => {
           };
         },
         async getRun() {
-          return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
+          return { run: { id: "up-run-1", title: null }, sentences: [], verdicts: {}, evaluations: [] };
         }
       },
       projects: {
