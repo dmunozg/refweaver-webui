@@ -2,6 +2,7 @@ import { useAuth } from "./auth/use-auth";
 import { useRef, useState } from "react";
 import { LoginForm } from "./auth/LoginForm";
 import { AuthClientError } from "./auth/api";
+import { DashboardView } from "./analysis/DashboardView";
 import { NewAnalysisView } from "./analysis/NewAnalysisView";
 import { AnalysisRouteView } from "./navigation/AnalysisRouteView";
 import { useRoute } from "./navigation/use-route";
@@ -82,7 +83,9 @@ export function App() {
             Log out
           </button>
         </header>
-        {route.kind === "new" ? (
+        {route.kind === "dashboard" ? (
+          <DashboardView onCreateNewAnalysis={() => navigate({ kind: "new" })} />
+        ) : route.kind === "new" ? (
           <NewAnalysisView onSubmitSuccess={() => navigate({ kind: "dashboard" })} />
         ) : (
           <AnalysisRouteView route={route} />

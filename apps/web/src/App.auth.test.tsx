@@ -7,25 +7,20 @@ vi.mock("./auth/use-auth", () => ({
   useAuth: vi.fn()
 }));
 
-vi.mock("./analysis/api", () => ({
-  createRun: vi.fn()
-}));
-
-vi.mock("./projects/use-default-project", () => ({
-  useDefaultProject: vi.fn()
-}));
-
 import { useAuth } from "./auth/use-auth";
 import { App } from "./App";
-import { createRun } from "./analysis/api";
+import * as api from "./analysis/api";
+import * as polling from "./analysis/polling";
 import { LoginForm } from "./auth/LoginForm";
 import { analysisRoutes } from "./navigation/routes";
 import { installMockWindow } from "./navigation/test-window";
-import { useDefaultProject } from "./projects/use-default-project";
+import * as projectModule from "./projects/use-default-project";
 
 const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
-const mockedCreateRun = vi.mocked(createRun);
-const mockedUseDefaultProject = vi.mocked(useDefaultProject);
+const mockedCreateRun = vi.spyOn(api, "createRun");
+const mockedListRuns = vi.spyOn(api, "listRuns");
+const mockedPollAnalysisRun = vi.spyOn(polling, "pollAnalysisRun");
+const mockedUseDefaultProject = vi.spyOn(projectModule, "useDefaultProject");
 
 afterEach(() => {
   delete (globalThis as any).window;
@@ -35,6 +30,12 @@ afterEach(() => {
 beforeEach(() => {
   installMockWindow("/");
   mockedUseDefaultProject.mockReturnValue({ status: "ready", projectId: "project-1" });
+  mockedListRuns.mockResolvedValue({
+    runs: [],
+    pagination: { page: 1, pageSize: 10, hasNext: false, hasPrevious: false }
+  });
+  mockedPollAnalysisRun.mockImplementation(async (_projectId, run) => run);
+  mockedCreateRun.mockResolvedValue({ run: { id: "run-1" } } as never);
 });
 
 describe("App auth shell", () => {
@@ -52,7 +53,7 @@ describe("App auth shell", () => {
     };
   }
 
-  it("renders authenticated shell when user is authenticated", () => {
+  it("renders authenticated shell when user is authenticated", async () => {
     mockedUseAuth.mockReturnValue({
       state: authenticatedState(),
       refresh: async () => {},
@@ -61,8 +62,10 @@ describe("App auth shell", () => {
     });
 
     let renderer: TestRenderer.ReactTestRenderer;
-    act(() => {
+    await act(async () => {
       renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
     });
     const text = JSON.stringify(renderer!.toJSON());
 
@@ -71,7 +74,7 @@ describe("App auth shell", () => {
     expect(text).toContain("Log out");
   });
 
-  it("shows analysis navigation and swaps shell content when the route changes", () => {
+  it("shows analysis navigation and swaps shell content when the route changes", async () => {
     window.history.replaceState({}, "", analysisRoutes.dashboard);
 
     mockedUseAuth.mockReturnValue({
@@ -82,11 +85,14 @@ describe("App auth shell", () => {
     });
 
     let renderer: TestRenderer.ReactTestRenderer;
-    act(() => {
+    await act(async () => {
       renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
     expect(renderer!.root.findByType("h1").props.children).toBe("Dashboard");
+    expect(JSON.stringify(renderer!.toJSON())).toContain("Start a new analysis");
 
     const newAnalysisButton = renderer!.root
       .findAllByType("button")
@@ -123,6 +129,8 @@ describe("App auth shell", () => {
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
     expect(renderer!.root.findByType("h1").props.children).toBe("New analysis");

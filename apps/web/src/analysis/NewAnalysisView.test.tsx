@@ -3,20 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("./api", () => ({
-  createRun: vi.fn()
-}));
-
-vi.mock("../projects/use-default-project", () => ({
-  useDefaultProject: vi.fn()
-}));
-
-import { createRun } from "./api";
+import * as api from "./api";
 import { NewAnalysisView } from "./NewAnalysisView";
-import { useDefaultProject } from "../projects/use-default-project";
+import * as projectModule from "../projects/use-default-project";
 
-const mockedCreateRun = vi.mocked(createRun);
-const mockedUseDefaultProject = vi.mocked(useDefaultProject);
+const mockedCreateRun = vi.spyOn(api, "createRun");
+const mockedUseDefaultProject = vi.spyOn(projectModule, "useDefaultProject");
 
 describe("NewAnalysisView", () => {
   beforeEach(() => {
