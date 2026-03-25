@@ -118,7 +118,15 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
           return;
         }
 
-        setTerminalRunsState({ status: "ready", runs: selectTerminalRuns(response.runs), error: null });
+        setTerminalRunsState((current) => {
+          const nextRuns = selectTerminalRuns(response.runs);
+
+          if (current.status !== "ready") {
+            return { status: "ready", runs: nextRuns, error: null };
+          }
+
+          return { ...current, runs: mergeTerminalRuns(current.runs, nextRuns) };
+        });
       } catch {
         if (isActive) {
           setTerminalRunsState({ status: "error", runs: [], error: "Could not load analysis runs." });
