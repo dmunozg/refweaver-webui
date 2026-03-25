@@ -67,13 +67,11 @@ function parseRunResponse(input: unknown): AnalysisRunResponse {
     throw new AnalysisClientError("unknown");
   }
 
-  if (input.upstreamRun !== undefined && !isUpstreamRunPayload(input.upstreamRun)) {
-    throw new AnalysisClientError("unknown");
-  }
-
   return {
     run: input.run,
-    ...(input.upstreamRun === undefined ? {} : { upstreamRun: input.upstreamRun })
+    ...(input.upstreamRun !== undefined && isUpstreamRunPayload(input.upstreamRun)
+      ? { upstreamRun: input.upstreamRun }
+      : {})
   };
 }
 

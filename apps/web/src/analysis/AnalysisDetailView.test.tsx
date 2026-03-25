@@ -142,6 +142,30 @@ describe("AnalysisDetailView", () => {
     expect(onCreateNewAnalysis).toHaveBeenCalled();
   });
 
+  it("renders the upstream payload when present", async () => {
+    mockedGetRun.mockResolvedValueOnce({
+      run: {
+        id: "run-1",
+        ...baseRun,
+        title: "Finished run",
+        status: "finished",
+        refweaverJobId: null
+      },
+      upstreamRun: {
+        run: { id: "up-run-1", status: "complete" },
+        sentences: [],
+        verdicts: {},
+        evaluations: [],
+        report: "# report"
+      }
+    } as never);
+
+    const renderer = await renderView();
+
+    expect(getText(renderer)).toContain("Upstream payload");
+    expect(getText(renderer)).toContain("report");
+  });
+
   it("shows failed runs as terminal failures", async () => {
     mockedGetRun.mockResolvedValueOnce({
       run: {

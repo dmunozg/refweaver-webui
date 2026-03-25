@@ -19,12 +19,8 @@ export type AnalysisUpstreamRunPayload = {
   report?: string;
 };
 
-export type AnalysisRunDetails = AnalysisRunRecord & {
-  upstreamRun?: AnalysisUpstreamRunPayload;
-};
-
 export type AnalysisRunResponse = {
-  run: AnalysisRunDetails;
+  run: AnalysisRunRecord;
   upstreamRun?: AnalysisUpstreamRunPayload;
 };
 
