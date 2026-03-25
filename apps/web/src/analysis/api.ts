@@ -124,20 +124,14 @@ function parseJobPollResponse(input: unknown): AnalysisJobPollResponse {
 
   if (
     typeof input.status !== "string" ||
-    typeof input.jobId !== "string" ||
-    typeof input.userId !== "string" ||
-    (input.runId !== undefined && typeof input.runId !== "string") ||
-    (input.runUrl !== undefined && typeof input.runUrl !== "string")
+    !isRunRecord(input.run)
   ) {
     throw new AnalysisClientError("unknown");
   }
 
   return {
     status: input.status,
-    jobId: input.jobId,
-    userId: input.userId,
-    ...(input.runId === undefined ? {} : { runId: input.runId }),
-    ...(input.runUrl === undefined ? {} : { runUrl: input.runUrl })
+    run: input.run
   };
 }
 

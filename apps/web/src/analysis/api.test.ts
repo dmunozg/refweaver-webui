@@ -194,15 +194,23 @@ describe("analysis api", () => {
     });
   });
 
-  it("pollJob parses a job payload", async () => {
+  it("pollJob parses the BFF status and run payload", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
           status: "finished",
-          jobId: "job-1",
-          userId: "user-1",
-          runId: "run-1",
-          runUrl: "/projects/project-1/runs/run-1"
+          run: {
+            id: "run-1",
+            projectId: "project-1",
+            userId: "user-1",
+            title: "Draft analysis",
+            inputText: "hello world",
+            status: "finished",
+            refweaverRunId: "up-run-1",
+            refweaverJobId: "job-1",
+            createdAt: "2026-03-25T00:00:00.000Z",
+            updatedAt: "2026-03-25T00:00:00.000Z"
+          }
         }),
         { status: 200 }
       )
@@ -211,7 +219,8 @@ describe("analysis api", () => {
     const result = await pollJob("project-1", "job-1");
 
     expect(result.status).toBe("finished");
-    expect(result.runUrl).toBe("/projects/project-1/runs/run-1");
+    expect(result.run.id).toBe("run-1");
+    expect(result.run.status).toBe("finished");
   });
 
   it("pollJob maps invalid payload shapes to unknown", async () => {

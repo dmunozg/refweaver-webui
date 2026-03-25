@@ -38,10 +38,7 @@ export type AnalysisRunListResponse = {
 
 export type AnalysisJobPollResponse = {
   status: string;
-  jobId: string;
-  userId: string;
-  runId?: string;
-  runUrl?: string;
+  run: AnalysisRunRecord;
 };
 
 export type CreateAnalysisRunInput = {

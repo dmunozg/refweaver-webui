@@ -22,7 +22,7 @@ export async function pollAnalysisRun(projectId: string, run: AnalysisRunRecord)
 
   try {
     const response = await pollJob(projectId, run.refweaverJobId);
-    return { ...run, status: response.status };
+    return response.run;
   } catch (error) {
     if (error instanceof AnalysisClientError && error.code === "not_found") {
       return { ...run, status: "missing" };
