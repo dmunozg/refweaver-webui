@@ -42,11 +42,11 @@ describe("AnalysisDetailView", () => {
     vi.resetAllMocks();
   });
 
-  async function renderView(runId = "run-1") {
+  async function renderView(runId = "run-1", onCreateNewAnalysis = vi.fn()) {
     let renderer: TestRenderer.ReactTestRenderer;
 
     await act(async () => {
-      renderer = TestRenderer.create(<AnalysisDetailView runId={runId} />);
+      renderer = TestRenderer.create(<AnalysisDetailView runId={runId} onCreateNewAnalysis={onCreateNewAnalysis} />);
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -108,6 +108,30 @@ describe("AnalysisDetailView", () => {
     expect(mockedPollAnalysisRun).toHaveBeenCalledTimes(2);
     expect(mockedGetRun).toHaveBeenCalledTimes(2);
     expect(getText(renderer)).toContain("finished");
+  });
+
+  it("shows a New analysis CTA for failed runs", async () => {
+    mockedGetRun.mockResolvedValueOnce({
+      run: {
+        id: "run-1",
+        ...baseRun,
+        title: "Failed run",
+        status: "missing",
+        refweaverJobId: "job-1"
+      }
+    } as never);
+
+    const onCreateNewAnalysis = vi.fn();
+    const renderer = await renderView("run-1", onCreateNewAnalysis);
+
+    expect(getText(renderer)).toContain("failed");
+    const button = renderer.root.findAllByType("button").find((entry: { props: { children: string } }) => entry.props.children === "New analysis");
+
+    expect(button).toBeDefined();
+    act(() => {
+      button?.props.onClick();
+    });
+    expect(onCreateNewAnalysis).toHaveBeenCalled();
   });
 
   it("shows failed runs as terminal failures", async () => {

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatRunTitle, listRuns } from "./api";
-import { isTerminalRunStatus, pollAnalysisRun } from "./polling";
+import { formatAnalysisStatus, getPollingDelayMs, isTerminalRunStatus, pollAnalysisRun } from "./polling";
 import type { AnalysisRunRecord } from "./types";
 import { useDefaultProject } from "../projects/use-default-project";
 
 type DashboardViewProps = {
   onCreateNewAnalysis?: () => void;
+  onViewAllAnalyses?: () => void;
 };
 
 type DashboardRunsState =
@@ -15,7 +16,6 @@ type DashboardRunsState =
 
 const terminalLimit = 5;
 const pageSize = 50;
-const pollIntervalMs = 1000;
 
 function sortRunsNewestFirst(runs: AnalysisRunRecord[]): AnalysisRunRecord[] {
   return [...runs].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
@@ -35,14 +35,14 @@ function DashboardRunList({ runs }: { runs: AnalysisRunRecord[] }) {
       {runs.map((run) => (
         <li key={run.id}>
           <strong>{formatRunTitle(run.title)}</strong>
-          <div>Status: {run.status}</div>
+          <div>Status: {formatAnalysisStatus(run.status)}</div>
         </li>
       ))}
     </ul>
   );
 }
 
-export function DashboardView({ onCreateNewAnalysis }: DashboardViewProps) {
+export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: DashboardViewProps) {
   const project = useDefaultProject();
   const [runsState, setRunsState] = useState<DashboardRunsState>({ status: "loading", runs: [], error: null });
   const runsRef = useRef<AnalysisRunRecord[]>([]);
@@ -55,6 +55,8 @@ export function DashboardView({ onCreateNewAnalysis }: DashboardViewProps) {
 
   useEffect(() => {
     let isActive = true;
+    let timeoutId: number | null = null;
+    let pollAttempt = 0;
 
     if (project.status === "error") {
       setRunsState({ status: "error", runs: [], error: projectError });
@@ -110,6 +112,8 @@ export function DashboardView({ onCreateNewAnalysis }: DashboardViewProps) {
     }
 
     let isActive = true;
+    let timeoutId: number | null = null;
+    let pollAttempt = 0;
 
     async function pollRuns() {
       const inProgressRuns = runsRef.current.filter((run) => !isTerminalRunStatus(run.status));
@@ -134,19 +138,27 @@ export function DashboardView({ onCreateNewAnalysis }: DashboardViewProps) {
             runs: current.runs.map((run) => updatesById.get(run.id) ?? run)
           };
         });
+
+        pollAttempt += 1;
+        timeoutId = globalThis.setTimeout(() => {
+          void pollRuns();
+        }, getPollingDelayMs(pollAttempt));
       } catch {
         // Keep the current list visible if polling fails.
+        pollAttempt += 1;
+        timeoutId = globalThis.setTimeout(() => {
+          void pollRuns();
+        }, getPollingDelayMs(pollAttempt));
       }
     }
 
     void pollRuns();
-    const intervalId = globalThis.setInterval(() => {
-      void pollRuns();
-    }, pollIntervalMs);
 
     return () => {
       isActive = false;
-      globalThis.clearInterval(intervalId);
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
+      }
     };
   }, [project.status, projectId, runsState.status]);
 
@@ -159,12 +171,16 @@ export function DashboardView({ onCreateNewAnalysis }: DashboardViewProps) {
   }, [runsState]);
 
   const handleCreateNewAnalysis = onCreateNewAnalysis ?? (() => {});
+  const handleViewAllAnalyses = onViewAllAnalyses ?? (() => {});
 
   return (
     <section>
       <h1>Dashboard</h1>
       <button type="button" onClick={handleCreateNewAnalysis}>
         Start a new analysis
+      </button>
+      <button type="button" onClick={handleViewAllAnalyses}>
+        View all
       </button>
 
       {project.status === "loading" || runsState.status === "loading" ? <p>Loading analyses...</p> : null}

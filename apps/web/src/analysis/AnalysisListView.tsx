@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { formatRunTitle, listRuns } from "./api";
+import { formatAnalysisStatus } from "./polling";
 import type { AnalysisRunRecord } from "./types";
 import { useDefaultProject } from "../projects/use-default-project";
 
@@ -15,7 +16,8 @@ type AnalysisListViewProps = {
 const pageSize = 10;
 
 function statusTone(status: string) {
-  return status === "failed" || status === "error" ? "red" : "green";
+  const displayStatus = formatAnalysisStatus(status);
+  return displayStatus === "failed" || displayStatus === "error" ? "red" : "green";
 }
 
 function formatCreatedAt(createdAt: string) {
@@ -105,7 +107,7 @@ export function AnalysisListView({ onRunSelect }: AnalysisListViewProps) {
         <ul>
           {state.runs.map((run) => (
             <li key={run.id}>
-              <span aria-label={`Status: ${run.status}`} style={{ color: statusTone(run.status) }}>
+              <span aria-label={`Status: ${formatAnalysisStatus(run.status)}`} style={{ color: statusTone(run.status) }}>
                 ●
               </span>{" "}
               {onRunSelect ? (

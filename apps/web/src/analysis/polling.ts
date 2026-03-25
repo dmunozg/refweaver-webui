@@ -7,6 +7,14 @@ export function isTerminalRunStatus(status: string): boolean {
   return terminalStatuses.has(status);
 }
 
+export function formatAnalysisStatus(status: string): string {
+  return status === "missing" ? "failed" : status;
+}
+
+export function getPollingDelayMs(attempt: number): number {
+  return attempt < 3 ? 1000 : 2000;
+}
+
 export async function pollAnalysisRun(projectId: string, run: AnalysisRunRecord): Promise<AnalysisRunRecord> {
   if (!run.refweaverJobId || isTerminalRunStatus(run.status)) {
     return run;

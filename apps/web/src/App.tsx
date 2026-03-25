@@ -86,11 +86,14 @@ export function App() {
           </button>
         </header>
         {route.kind === "dashboard" ? (
-          <DashboardView onCreateNewAnalysis={() => navigate({ kind: "new" })} />
+          <DashboardView
+            onCreateNewAnalysis={() => navigate({ kind: "new" })}
+            onViewAllAnalyses={() => navigate({ kind: "list" })}
+          />
         ) : route.kind === "list" ? (
           <AnalysisListView onRunSelect={(runId) => navigate({ kind: "detail", runId })} />
         ) : route.kind === "detail" ? (
-          <AnalysisDetailView runId={route.runId} />
+          <AnalysisDetailView runId={route.runId} onCreateNewAnalysis={() => navigate({ kind: "new" })} />
         ) : route.kind === "new" ? (
           <NewAnalysisView onSubmitSuccess={() => navigate({ kind: "dashboard" })} />
         ) : (

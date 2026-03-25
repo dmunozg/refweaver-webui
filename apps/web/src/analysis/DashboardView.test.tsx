@@ -34,11 +34,13 @@ describe("DashboardView", () => {
     vi.resetAllMocks();
   });
 
-  async function renderView(onCreateNewAnalysis = vi.fn()) {
+  async function renderView(onCreateNewAnalysis = vi.fn(), onViewAllAnalyses = vi.fn()) {
     let renderer: TestRenderer.ReactTestRenderer;
 
     await act(async () => {
-      renderer = TestRenderer.create(<DashboardView onCreateNewAnalysis={onCreateNewAnalysis} />);
+      renderer = TestRenderer.create(
+        <DashboardView onCreateNewAnalysis={onCreateNewAnalysis} onViewAllAnalyses={onViewAllAnalyses} />
+      );
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -73,7 +75,7 @@ describe("DashboardView", () => {
           id: "run-3",
           ...baseRun,
           title: null,
-          status: "failed",
+          status: "missing",
           createdAt: "2026-03-24T12:00:00.000Z",
           refweaverJobId: "job-3"
         }
@@ -88,6 +90,8 @@ describe("DashboardView", () => {
     expect(getText(renderer)).toContain("Older finished");
     expect(getText(renderer)).toContain("(no title)");
     expect(getText(renderer)).toContain("running");
+    expect(getText(renderer)).toContain("failed");
+    expect(getText(renderer)).not.toContain("missing");
   });
 
   it("caps the terminal list at five runs", async () => {
@@ -173,6 +177,21 @@ describe("DashboardView", () => {
     const text = getText(renderer);
 
     expect(text).toContain("failed");
-    expect(text).toContain("missing");
+    expect(text).toContain("failed");
+    expect(text).not.toContain("missing");
+  });
+
+  it("shows a View all action", async () => {
+    const onViewAllAnalyses = vi.fn();
+    const renderer = await renderView(vi.fn(), onViewAllAnalyses);
+
+    const viewAllButton = renderer.root.findAllByType("button").find((button: { props: { children: string } }) => button.props.children === "View all");
+    expect(viewAllButton).toBeDefined();
+
+    act(() => {
+      viewAllButton?.props.onClick();
+    });
+
+    expect(onViewAllAnalyses).toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pollAnalysisRun, isTerminalRunStatus } from "./polling";
+import { getPollingDelayMs, pollAnalysisRun, isTerminalRunStatus } from "./polling";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -59,5 +59,12 @@ describe("polling", () => {
     });
 
     expect(result.status).toBe("missing");
+  });
+
+  it("uses a 1s then 2s backoff cadence", () => {
+    expect(getPollingDelayMs(0)).toBe(1000);
+    expect(getPollingDelayMs(1)).toBe(1000);
+    expect(getPollingDelayMs(2)).toBe(1000);
+    expect(getPollingDelayMs(3)).toBe(2000);
   });
 });

@@ -138,6 +138,37 @@ describe("App auth shell", () => {
     expect(renderer!.root.findByType("h1").props.children).toBe("Analysis list");
   });
 
+  it("routes from dashboard View all to the analysis list", async () => {
+    window.history.replaceState({}, "", analysisRoutes.dashboard);
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const viewAllButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "View all");
+
+    expect(viewAllButton).toBeDefined();
+
+    act(() => {
+      viewAllButton?.props.onClick();
+    });
+
+    expect(window.location.pathname).toBe(analysisRoutes.list);
+    expect(renderer!.root.findByType("h1").props.children).toBe("Analysis list");
+  });
+
   it("renders the analysis detail route", async () => {
     window.history.replaceState({}, "", analysisRoutes.detail("run-1"));
 

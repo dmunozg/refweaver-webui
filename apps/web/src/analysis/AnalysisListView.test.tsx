@@ -171,7 +171,7 @@ describe("AnalysisListView", () => {
           userId: "user-1",
           title: "   ",
           inputText: "hello world",
-          status: "failed",
+          status: "missing",
           refweaverRunId: null,
           refweaverJobId: null,
           createdAt: "2026-03-25T10:00:00.000Z",

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { AnalysisClientError, formatRunTitle, getRun } from "./api";
-import { isTerminalRunStatus, pollAnalysisRun } from "./polling";
+import { formatAnalysisStatus, getPollingDelayMs, isTerminalRunStatus, pollAnalysisRun } from "./polling";
 import type { AnalysisRunRecord } from "./types";
 import { useDefaultProject } from "../projects/use-default-project";
 
 type AnalysisDetailViewProps = {
   runId: string;
+  onCreateNewAnalysis?: () => void;
 };
 
 type DetailState =
@@ -13,8 +14,6 @@ type DetailState =
   | { status: "ready"; run: AnalysisRunRecord }
   | { status: "missing" }
   | { status: "error"; error: string };
-
-const pollIntervalMs = 1000;
 
 function formatCreatedAt(createdAt: string) {
   return new Date(createdAt).toLocaleString();
@@ -28,7 +27,7 @@ function getRunStatusLabel(status: string) {
   return `In progress: ${status}`;
 }
 
-export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
+export function AnalysisDetailView({ runId, onCreateNewAnalysis }: AnalysisDetailViewProps) {
   const project = useDefaultProject();
   const [state, setState] = useState<DetailState>({ status: "loading" });
   const projectId = project.status === "ready" ? project.projectId : null;
@@ -36,6 +35,8 @@ export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
 
   useEffect(() => {
     let isActive = true;
+    let timeoutId: number | null = null;
+    let pollAttempt = 0;
 
     if (project.status === "error") {
       setState({ status: "error", error: projectError ?? "Could not load your projects." });
@@ -97,6 +98,8 @@ export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
     }
 
     let isActive = true;
+    let timeoutId: number | null = null;
+    let pollAttempt = 0;
 
     async function pollRun() {
       try {
@@ -111,20 +114,27 @@ export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
           }
 
           setState({ status: "ready", run: nextRun });
+          pollAttempt += 1;
+          timeoutId = globalThis.setTimeout(() => {
+            void pollRun();
+          }, getPollingDelayMs(pollAttempt));
         }
       } catch {
         // Keep the last loaded run visible.
+        pollAttempt += 1;
+        timeoutId = globalThis.setTimeout(() => {
+          void pollRun();
+        }, getPollingDelayMs(pollAttempt));
       }
     }
 
     void pollRun();
-    const intervalId = globalThis.setInterval(() => {
-      void pollRun();
-    }, pollIntervalMs);
 
     return () => {
       isActive = false;
-      globalThis.clearInterval(intervalId);
+      if (timeoutId !== null) {
+        globalThis.clearTimeout(timeoutId);
+      }
     };
   }, [project.status, projectId, runStatus]);
 
@@ -151,6 +161,10 @@ export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
       <section>
         <h1>Analysis detail</h1>
         <p>Analysis run not found.</p>
+        <p>Status: failed</p>
+        <button type="button" onClick={onCreateNewAnalysis ?? (() => {})}>
+          New analysis
+        </button>
       </section>
     );
   }
@@ -158,7 +172,7 @@ export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
   return (
     <section>
       <h1>Analysis detail</h1>
-      <p>{getRunStatusLabel(state.run.status)}</p>
+      <p>{getRunStatusLabel(formatAnalysisStatus(state.run.status))}</p>
       <dl>
         <div>
           <dt>Title</dt>
@@ -166,7 +180,7 @@ export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
         </div>
         <div>
           <dt>Status</dt>
-          <dd>{state.run.status}</dd>
+          <dd>{formatAnalysisStatus(state.run.status)}</dd>
         </div>
         <div>
           <dt>Created</dt>
@@ -175,6 +189,11 @@ export function AnalysisDetailView({ runId }: AnalysisDetailViewProps) {
           </dd>
         </div>
       </dl>
+      {isTerminalRunStatus(state.run.status) ? (
+        <button type="button" onClick={onCreateNewAnalysis ?? (() => {})}>
+          New analysis
+        </button>
+      ) : null}
     </section>
   );
 }
