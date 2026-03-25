@@ -12,6 +12,7 @@ function makeRecord(overrides: Partial<RunRecord> = {}): RunRecord {
     id: "local-run-1",
     projectId: "project-1",
     userId: "user-1",
+    title: null,
     inputText: "input",
     status: "queued",
     refweaverRunId: "up-run-1",
@@ -77,6 +78,169 @@ describe("run service", () => {
     expect(submitted.refweaverJobId).toBe("job-1");
     expect(created[0]?.projectId).toBe("project-1");
     expect(created[0]?.text).toBe("hello");
+  });
+
+  it("normalizes optional title before persisting a run", async () => {
+    const created: Array<{ projectId: string; userId: string; text: string; title: string | null }> = [];
+
+    const service = createRunService({
+      store: {
+        async createRun(input) {
+          created.push(input);
+          return makeRecord({ inputText: input.text, title: input.title });
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return null;
+        },
+        async getRunByJobId() {
+          return null;
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          return { run: {}, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const submitted = await (service.submitRun as any)(
+      "user-1",
+      "project-1",
+      "  hello  ",
+      "  Draft analysis  "
+    );
+
+    expect(created[0]?.title).toBe("Draft analysis");
+    expect(submitted.title).toBe("Draft analysis");
+  });
+
+  it("stores null when title is blank after trim", async () => {
+    const created: Array<{ projectId: string; userId: string; text: string; title: string | null }> = [];
+
+    const service = createRunService({
+      store: {
+        async createRun(input) {
+          created.push(input);
+          return makeRecord({ inputText: input.text, title: input.title });
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return null;
+        },
+        async getRunByJobId() {
+          return null;
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          return { run: {}, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const submitted = await (service.submitRun as any)("user-1", "project-1", "hello", "   \n\t  ");
+
+    expect(created[0]?.title).toBeNull();
+    expect(submitted.title).toBeNull();
+  });
+
+  it("rejects titles longer than 120 characters", async () => {
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return null;
+        },
+        async getRunByJobId() {
+          return null;
+        },
+        async updateRunStatus() {
+          return null;
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          return { status: "started", jobId: "job-1", userId: "user-1" };
+        },
+        async getRun() {
+          return { run: {}, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    await expect(
+      (service.submitRun as any)("user-1", "project-1", "hello", "x".repeat(121))
+    ).rejects.toBeInstanceOf(RunValidationError);
   });
 
   it("rejects submissions for soft-deleted projects", async () => {

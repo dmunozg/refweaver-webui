@@ -28,6 +28,22 @@ type RunServiceDeps = {
   projects: ProjectLookup;
 };
 
+function normalizeTitle(title?: string | null): string | null {
+  if (title == null) {
+    return null;
+  }
+
+  const normalized = title.trim();
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.length > 120) {
+    throw new RunValidationError("Run title must be 120 characters or fewer");
+  }
+
+  return normalized;
+}
+
 async function assertActiveProject(projects: ProjectLookup, userId: string, projectId: string) {
   const project = await projects.getProject(userId, projectId);
   if (!project) {
@@ -40,13 +56,20 @@ async function assertActiveProject(projects: ProjectLookup, userId: string, proj
 
 export function createRunService(deps: RunServiceDeps) {
   return {
-    async submitRun(userId: string, projectId: string, text: string): Promise<RunRecord> {
+    async submitRun(
+      userId: string,
+      projectId: string,
+      text: string,
+      title?: string | null
+    ): Promise<RunRecord> {
       await assertActiveProject(deps.projects, userId, projectId);
 
       const normalizedText = text.trim();
       if (!normalizedText) {
         throw new RunValidationError("Run text is required");
       }
+
+      const normalizedTitle = normalizeTitle(title);
 
       const analyze = await deps.refweaver.analyze(userId, {
         text: normalizedText,
@@ -55,7 +78,7 @@ export function createRunService(deps: RunServiceDeps) {
       return deps.store.createRun({
         projectId,
         userId,
-        title: null,
+        title: normalizedTitle,
         text: normalizedText,
         status: analyze.status,
         refweaverRunId: analyze.runId,

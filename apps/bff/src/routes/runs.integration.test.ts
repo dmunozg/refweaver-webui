@@ -29,7 +29,7 @@ function buildAuthStore(userId = "user-1") {
     async deleteSessionByTokenHash() {
       return;
     }
-  };
+  } as any;
 }
 
 function createMemoryRunStore(): RunStore {
@@ -38,22 +38,27 @@ function createMemoryRunStore(): RunStore {
 
   return {
     async createRun(input) {
+      const timestamp = Date.now() + seq;
       const row: RunRecord = {
         id: `10000000-0000-4000-8000-${String(seq++).padStart(12, "0")}`,
         projectId: input.projectId,
         userId: input.userId,
+        title: input.title,
         inputText: input.text,
         status: input.status,
         refweaverRunId: input.refweaverRunId,
         refweaverJobId: input.refweaverJobId,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: new Date(timestamp),
+        updatedAt: new Date(timestamp)
       };
       rows.set(row.id, row);
       return row;
     },
     async listRuns(userId, projectId) {
-      return Array.from(rows.values()).filter((row) => row.userId === userId && row.projectId === projectId);
+      const sorted = Array.from(rows.values())
+        .filter((row) => row.userId === userId && row.projectId === projectId)
+        .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime());
+      return sorted;
     },
     async getRunById(userId, projectId, runId) {
       const row = rows.get(runId) ?? null;
@@ -129,9 +134,11 @@ describe("run route integration", () => {
     const submit = await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
       method: "POST",
       headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
-      body: JSON.stringify({ text: "Test sentence" })
+      body: JSON.stringify({ text: "Test sentence", title: "  Draft analysis  " })
     });
     expect(submit.status).toBe(202);
+    const submitBody = await submit.json();
+    expect(submitBody.run.title).toBe("Draft analysis");
 
     const list = await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
       headers: { cookie: "rw_session=known-token" }
@@ -139,6 +146,7 @@ describe("run route integration", () => {
     expect(list.status).toBe(200);
     const listBody = await list.json();
     expect(listBody.runs).toHaveLength(1);
+    expect(listBody.pagination).toEqual({ page: 1, pageSize: 10, hasNext: false, hasPrevious: false });
 
     const poll = await app.request(
       "/projects/40000000-0000-4000-8000-000000000001/jobs/30000000-0000-4000-8000-000000000001",
@@ -149,6 +157,66 @@ describe("run route integration", () => {
     expect(poll.status).toBe(200);
     const pollBody = await poll.json();
     expect(pollBody.status).toBe("finished");
+  });
+
+  it("lists newest runs first", async () => {
+    const runService = createRunService({
+      store: createMemoryRunStore(),
+      refweaver: {
+        async analyze() {
+          return {
+            runId: "20000000-0000-4000-8000-000000000001",
+            status: "queued",
+            jobId: "30000000-0000-4000-8000-000000000001",
+            jobUrl: "/jobs/30000000-0000-4000-8000-000000000001"
+          };
+        },
+        async getJob() {
+          return {
+            status: "finished",
+            jobId: "30000000-0000-4000-8000-000000000001",
+            userId: "user-1",
+            runId: "20000000-0000-4000-8000-000000000001"
+          };
+        },
+        async getRun() {
+          return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const app = createApp({ signupStore: buildAuthStore(), runService });
+
+    await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: JSON.stringify({ text: "First", title: "Older" })
+    });
+    await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: JSON.stringify({ text: "Second", title: "Newest" })
+    });
+
+    const list = await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+    const body = await list.json();
+
+    expect(body.runs.map((run: { title: string | null }) => run.title)).toEqual(["Newest", "Older"]);
   });
 
   it("denies cross-user run access", async () => {

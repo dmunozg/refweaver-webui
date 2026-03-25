@@ -27,7 +27,7 @@ function buildAuthStore() {
     async deleteSessionByTokenHash() {
       return;
     }
-  };
+  } as any;
 }
 
 describe("run routes", () => {
@@ -40,6 +40,7 @@ describe("run routes", () => {
             id: "run-1",
             projectId: "project-1",
             userId: "user-1",
+            title: null,
             inputText: "hello",
             status: "queued",
             refweaverRunId: "up-run-1",
@@ -92,7 +93,7 @@ describe("run routes", () => {
             }
           };
         }
-      }
+      } as any
     });
 
     const createResponse = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -133,7 +134,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      }
+      } as any
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -163,7 +164,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      }
+      } as any
     });
 
     const response = await app.request("/projects/not-a-uuid/runs", {
@@ -191,7 +192,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      }
+      } as any
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -253,7 +254,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      }
+      } as any
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -273,12 +274,13 @@ describe("run routes", () => {
     const app = createApp({
       signupStore: buildAuthStore(),
       runService: {
-        async submitRun(_userId, _projectId, text) {
+        async submitRun(_userId: string, _projectId: string, text: string) {
           submittedText = text;
           return {
             id: "run-1",
             projectId: "project-1",
             userId: "user-1",
+            title: null,
             inputText: text,
             status: "queued",
             refweaverRunId: "up-run-1",
@@ -296,7 +298,7 @@ describe("run routes", () => {
         async pollJob() {
           throw new Error("unused");
         }
-      }
+      } as any
     });
 
     const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
@@ -307,5 +309,95 @@ describe("run routes", () => {
 
     expect(response.status).toBe(202);
     expect(submittedText).toBe("hello world");
+  });
+
+  it("accepts an optional run title when submitting", async () => {
+    let submittedTitle: string | null = null;
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun(_userId: string, _projectId: string, text: string, title: string | undefined) {
+          submittedTitle = title ?? null;
+          return {
+            id: "run-1",
+            projectId: "project-1",
+            userId: "user-1",
+            title: title ?? null,
+            inputText: text,
+            status: "queued",
+            refweaverRunId: "up-run-1",
+            refweaverJobId: "job-1",
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      } as any
+    });
+
+    const response = await app.request("/projects/11111111-1111-4111-8111-111111111111/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: JSON.stringify({ text: "hello", title: "  Draft analysis  " })
+    });
+
+    expect(response.status).toBe(202);
+    expect(submittedTitle).toBe("  Draft analysis  ");
+  });
+
+  it("returns paginated run listings", async () => {
+    let receivedPagination: { limit: number; offset: number } | null = null;
+    const runs = Array.from({ length: 6 }, (_, index) => ({
+      id: `run-${index + 1}`,
+      projectId: "project-1",
+      userId: "user-1",
+      title: `Run ${index + 1}`,
+      inputText: `input-${index + 1}`,
+      status: "queued",
+      refweaverRunId: `up-run-${index + 1}`,
+      refweaverJobId: `job-${index + 1}`,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }));
+
+    const app = createApp({
+      signupStore: buildAuthStore(),
+      runService: {
+        async submitRun() {
+          throw new Error("unused");
+        },
+        async listRuns(_userId: string, _projectId: string, pagination?: { limit: number; offset: number }) {
+          receivedPagination = pagination ?? null;
+          return runs;
+        },
+        async getRun() {
+          throw new Error("unused");
+        },
+        async pollJob() {
+          throw new Error("unused");
+        }
+      } as any
+    });
+
+    const response = await app.request(
+      "/projects/11111111-1111-4111-8111-111111111111/runs?page=2&page_size=5",
+      {
+        headers: { cookie: "rw_session=known-token" }
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(receivedPagination).toEqual({ limit: 6, offset: 5 });
+    const body = await response.json();
+    expect(body.runs).toHaveLength(5);
+    expect(body.pagination).toEqual({ page: 2, pageSize: 5, hasNext: true, hasPrevious: true });
   });
 });
