@@ -1,7 +1,7 @@
 import TestRenderer, { act } from "react-test-renderer";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("./auth/use-auth", () => ({
   useAuth: vi.fn()
@@ -10,11 +10,58 @@ vi.mock("./auth/use-auth", () => ({
 import { useAuth } from "./auth/use-auth";
 import { App } from "./App";
 import { LoginForm } from "./auth/LoginForm";
+import { analysisRoutes } from "./navigation/routes";
 
 const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
 
+function createMockWindow(pathname: string) {
+  const listeners = new Set<() => void>();
+  const location = { pathname };
+
+  return {
+    location,
+    history: {
+      pushState: (_state: unknown, _title: string, nextPathname?: string) => {
+        if (nextPathname) {
+          location.pathname = nextPathname;
+        }
+      },
+      replaceState: (_state: unknown, _title: string, nextPathname?: string) => {
+        if (nextPathname) {
+          location.pathname = nextPathname;
+        }
+      }
+    },
+    addEventListener: (type: string, listener: () => void) => {
+      if (type === "popstate") {
+        listeners.add(listener);
+      }
+    },
+    removeEventListener: (type: string, listener: () => void) => {
+      if (type === "popstate") {
+        listeners.delete(listener);
+      }
+    },
+    dispatchEvent: (event: { type: string }) => {
+      if (event.type === "popstate") {
+        listeners.forEach((listener) => listener());
+      }
+
+      return true;
+    }
+  };
+}
+
+let mockWindow: ReturnType<typeof createMockWindow>;
+
 afterEach(() => {
+  delete (globalThis as any).window;
   vi.resetAllMocks();
+});
+
+beforeEach(() => {
+  mockWindow = createMockWindow("/");
+  (globalThis as any).window = mockWindow;
 });
 
 describe("App auth shell", () => {
@@ -49,6 +96,37 @@ describe("App auth shell", () => {
     expect(text).toContain("Welcome");
     expect(text).toContain("Ada");
     expect(text).toContain("Log out");
+  });
+
+  it("shows analysis navigation and swaps shell content when the route changes", () => {
+    window.history.replaceState({}, "", analysisRoutes.dashboard);
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    expect(renderer!.root.findByType("h1").props.children).toBe("Dashboard");
+
+    const newAnalysisButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "New analysis");
+
+    expect(newAnalysisButton).toBeDefined();
+
+    act(() => {
+      newAnalysisButton?.props.onClick();
+    });
+
+    expect(window.location.pathname).toBe(analysisRoutes.new);
+    expect(renderer!.root.findByType("h1").props.children).toBe("New analysis");
   });
 
   it("renders signed-out shell when session is missing", () => {
@@ -127,10 +205,14 @@ describe("App auth shell", () => {
     await act(async () => {
       renderer = TestRenderer.create(<App />);
     });
-    const logoutButton = renderer!.root.findByType("button");
+    const logoutButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Log out");
+
+    expect(logoutButton).toBeDefined();
 
     await act(async () => {
-      await logoutButton.props.onClick();
+      await logoutButton?.props.onClick();
     });
 
     expect(logout).toHaveBeenCalledTimes(1);
@@ -159,20 +241,24 @@ describe("App auth shell", () => {
       renderer = TestRenderer.create(<App />);
     });
 
-    const logoutButton = renderer!.root.findByType("button");
+    const logoutButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Log out");
+
+    expect(logoutButton).toBeDefined();
 
     await act(async () => {
-      logoutButton.props.onClick();
-      logoutButton.props.onClick();
+      logoutButton?.props.onClick();
+      logoutButton?.props.onClick();
     });
 
     expect(logout).toHaveBeenCalledTimes(1);
-    expect(renderer!.root.findByType("button").props.disabled).toBe(true);
+    expect(logoutButton?.props.disabled).toBe(true);
 
     await act(async () => {
       resolveLogout?.();
     });
 
-    expect(renderer!.root.findByType("button").props.disabled).toBe(false);
+    expect(logoutButton?.props.disabled).toBe(false);
   });
 });
