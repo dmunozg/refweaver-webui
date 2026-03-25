@@ -495,6 +495,72 @@ describe("run routes", () => {
     expect(body.pagination).toEqual({ page: 2, pageSize: 5, hasNext: true, hasPrevious: true });
   });
 
+  it("rejects out-of-range page and page_size values while accepting bounds", async () => {
+    const cases = [
+      { query: "?page=0", status: 422, called: false },
+      { query: "?page=10001", status: 422, called: false },
+      { query: "?page_size=0", status: 422, called: false },
+      { query: "?page_size=101", status: 422, called: false },
+      {
+        query: "?page=1&page_size=1",
+        status: 200,
+        called: true,
+        pagination: { limit: 2, offset: 0, statusGroup: "all" }
+      },
+      {
+        query: "?page=10000&page_size=100",
+        status: 200,
+        called: true,
+        pagination: { limit: 101, offset: 999900, statusGroup: "all" }
+      }
+    ] as const;
+
+    for (const testCase of cases) {
+      let receivedPagination: { limit: number; offset: number; statusGroup?: string } | null = null;
+      let listRunsCalls = 0;
+
+      const app = createApp({
+        signupStore: buildAuthStore(),
+        runService: {
+          async submitRun() {
+            throw new Error("unused");
+          },
+          async listRuns(_userId: string, _projectId: string, pagination?: { limit: number; offset: number; statusGroup?: string }) {
+            listRunsCalls += 1;
+            receivedPagination = pagination ?? null;
+            return [];
+          },
+          async getRun() {
+            throw new Error("unused");
+          },
+          async pollJob() {
+            throw new Error("unused");
+          }
+        } satisfies ReturnType<typeof createRunService>
+      });
+
+      const response = await app.request(`/projects/11111111-1111-4111-8111-111111111111/runs${testCase.query}`, {
+        headers: { cookie: "rw_session=known-token" }
+      });
+
+      expect(response.status).toBe(testCase.status);
+      expect(listRunsCalls).toBe(testCase.called ? 1 : 0);
+
+      const body = await response.json();
+      if (testCase.status === 200) {
+        expect(receivedPagination).toEqual(testCase.pagination);
+        expect(body.pagination).toEqual({
+          page: Number(new URLSearchParams(testCase.query).get("page") ?? "1"),
+          pageSize: Number(new URLSearchParams(testCase.query).get("page_size") ?? "10"),
+          hasNext: false,
+          hasPrevious: Number(new URLSearchParams(testCase.query).get("page") ?? "1") > 1
+        });
+      } else {
+        expect(body.error.code).toBe("validation_error");
+      }
+    }
+  });
+
   it("rejects invalid status_group values", async () => {
     const app = createApp({
       signupStore: buildAuthStore(),

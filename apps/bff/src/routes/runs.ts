@@ -21,13 +21,13 @@ function getAuthUser(c: RunRouteContext): { id: string } {
   return c.get("authUser") as { id: string };
 }
 
-function parsePositiveInt(value: string | undefined, fallback: number): number | null {
+function parseBoundedInt(value: string | undefined, fallback: number, min: number, max: number): number | null {
   if (value === undefined) {
     return fallback;
   }
 
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1) {
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
     return null;
   }
 
@@ -78,12 +78,12 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
       return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
     }
 
-    const page = parsePositiveInt(c.req.query("page"), 1);
+    const page = parseBoundedInt(c.req.query("page"), 1, 1, 10_000);
     if (page === null) {
       return c.json({ error: { code: "validation_error", message: "Invalid page" } }, 422);
     }
 
-    const pageSize = parsePositiveInt(c.req.query("page_size"), 10);
+    const pageSize = parseBoundedInt(c.req.query("page_size"), 10, 1, 100);
     if (pageSize === null) {
       return c.json({ error: { code: "validation_error", message: "Invalid page size" } }, 422);
     }
