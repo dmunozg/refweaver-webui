@@ -106,6 +106,21 @@ describe("App auth shell", () => {
 
     expect(window.location.pathname).toBe(analysisRoutes.new);
     expect(renderer!.root.findByType("h1").props.children).toBe("New analysis");
+
+    const listButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Analysis list");
+
+    expect(listButton).toBeDefined();
+
+    await act(async () => {
+      listButton?.props.onClick();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(window.location.pathname).toBe(analysisRoutes.list);
+    expect(renderer!.root.findByType("h1").props.children).toBe("Analysis list");
   });
 
   it("returns to the dashboard after a new analysis is submitted successfully", async () => {

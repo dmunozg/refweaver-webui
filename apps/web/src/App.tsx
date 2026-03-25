@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { LoginForm } from "./auth/LoginForm";
 import { AuthClientError } from "./auth/api";
 import { DashboardView } from "./analysis/DashboardView";
+import { AnalysisListView } from "./analysis/AnalysisListView";
 import { NewAnalysisView } from "./analysis/NewAnalysisView";
 import { AnalysisRouteView } from "./navigation/AnalysisRouteView";
 import { useRoute } from "./navigation/use-route";
@@ -85,6 +86,8 @@ export function App() {
         </header>
         {route.kind === "dashboard" ? (
           <DashboardView onCreateNewAnalysis={() => navigate({ kind: "new" })} />
+        ) : route.kind === "list" ? (
+          <AnalysisListView />
         ) : route.kind === "new" ? (
           <NewAnalysisView onSubmitSuccess={() => navigate({ kind: "dashboard" })} />
         ) : (
