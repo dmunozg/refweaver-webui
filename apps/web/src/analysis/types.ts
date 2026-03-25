@@ -52,4 +52,5 @@ export type CreateAnalysisRunInput = {
 export type ListAnalysisRunsInput = {
   page?: number;
   pageSize?: number;
+  statusGroup?: string;
 };

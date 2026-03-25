@@ -43,6 +43,8 @@ describe("DashboardView", () => {
       );
       await Promise.resolve();
       await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
     return renderer!;
@@ -52,41 +54,61 @@ describe("DashboardView", () => {
     return JSON.stringify(renderer.toJSON());
   }
 
-  it("splits runs into in-progress and past sections in newest-first order", async () => {
-    mockedListRuns.mockResolvedValueOnce({
-      runs: [
-        {
-          id: "run-1",
-          ...baseRun,
-          title: "Older finished",
-          status: "finished",
-          createdAt: "2026-03-24T10:00:00.000Z",
-          refweaverJobId: "job-1"
-        },
-        {
-          id: "run-2",
-          ...baseRun,
-          title: "  ",
-          status: "running",
-          createdAt: "2026-03-25T10:00:00.000Z",
-          refweaverJobId: "job-2"
-        },
-        {
-          id: "run-3",
-          ...baseRun,
-          title: null,
-          status: "missing",
-          createdAt: "2026-03-24T12:00:00.000Z",
-          refweaverJobId: "job-3"
-        }
-      ],
-      pagination: { page: 1, pageSize: 10, hasNext: false, hasPrevious: false }
-    });
+  it("loads in-progress and terminal runs from separate queries", async () => {
+    mockedListRuns
+      .mockResolvedValueOnce({
+        runs: [
+          {
+            id: "run-2",
+            ...baseRun,
+            title: "  ",
+            status: "running",
+            createdAt: "2026-03-25T10:00:00.000Z",
+            refweaverJobId: "job-2"
+          },
+          {
+            id: "run-3",
+            ...baseRun,
+            title: null,
+            status: "queued",
+            createdAt: "2026-03-24T12:00:00.000Z",
+            refweaverJobId: "job-3"
+          }
+        ],
+        pagination: { page: 1, pageSize: 50, hasNext: false, hasPrevious: false }
+      })
+      .mockResolvedValueOnce({
+        runs: [
+          {
+            id: "run-1",
+            ...baseRun,
+            title: "Older finished",
+            status: "finished",
+            createdAt: "2026-03-24T10:00:00.000Z",
+            refweaverJobId: "job-1"
+          },
+          {
+            id: "run-4",
+            ...baseRun,
+            title: null,
+            status: "missing",
+            createdAt: "2026-03-24T09:00:00.000Z",
+            refweaverJobId: "job-4"
+          }
+        ],
+        pagination: { page: 1, pageSize: 5, hasNext: false, hasPrevious: false }
+      });
 
     const renderer = await renderView();
     const headings = renderer.root.findAllByType("h2").map((heading: { props: { children: unknown } }) => heading.props.children);
 
     expect(headings).toEqual(["In progress", "Past analyses"]);
+    expect(mockedListRuns).toHaveBeenNthCalledWith(1, "project-1", { page: 1, pageSize: 50 });
+    expect(mockedListRuns).toHaveBeenNthCalledWith(2, "project-1", {
+      page: 1,
+      pageSize: 5,
+      statusGroup: "terminal"
+    } as any);
     expect(getText(renderer)).toContain("Older finished");
     expect(getText(renderer)).toContain("(no title)");
     expect(getText(renderer)).toContain("running");
@@ -95,23 +117,33 @@ describe("DashboardView", () => {
   });
 
   it("caps the terminal list at five runs", async () => {
-    mockedListRuns.mockResolvedValueOnce({
-      runs: [
-        ...Array.from({ length: 7 }, (_, index) => ({
-          id: `run-${index + 1}`,
-          ...baseRun,
-          title: `Finished ${index + 1}`,
-          status: "finished",
-          createdAt: `2026-03-${String(25 - index).padStart(2, "0")}T10:00:00.000Z`,
-          refweaverJobId: `job-${index + 1}`
-        }))
-      ],
-      pagination: { page: 1, pageSize: 10, hasNext: false, hasPrevious: false }
-    });
+    mockedListRuns
+      .mockResolvedValueOnce({
+        runs: [],
+        pagination: { page: 1, pageSize: 50, hasNext: false, hasPrevious: false }
+      })
+      .mockResolvedValueOnce({
+        runs: [
+          ...Array.from({ length: 7 }, (_, index) => ({
+            id: `run-${index + 1}`,
+            ...baseRun,
+            title: `Finished ${index + 1}`,
+            status: "finished",
+            createdAt: `2026-03-${String(25 - index).padStart(2, "0")}T10:00:00.000Z`,
+            refweaverJobId: `job-${index + 1}`
+          }))
+        ],
+        pagination: { page: 1, pageSize: 5, hasNext: false, hasPrevious: false }
+      });
 
     const renderer = await renderView();
     const text = getText(renderer);
 
+    expect(mockedListRuns).toHaveBeenNthCalledWith(2, "project-1", {
+      page: 1,
+      pageSize: 5,
+      statusGroup: "terminal"
+    } as any);
     expect(text).toContain("Finished 1");
     expect(text).toContain("Finished 5");
     expect(text).not.toContain("Finished 6");
@@ -119,19 +151,24 @@ describe("DashboardView", () => {
   });
 
   it("moves an in-progress run into the terminal list after polling finishes", async () => {
-    mockedListRuns.mockResolvedValueOnce({
-      runs: [
-        {
-          id: "run-1",
-          ...baseRun,
-          title: "Polled run",
-          status: "queued",
-          createdAt: "2026-03-25T10:00:00.000Z",
-          refweaverJobId: "job-1"
-        }
-      ],
-      pagination: { page: 1, pageSize: 10, hasNext: false, hasPrevious: false }
-    });
+    mockedListRuns
+      .mockResolvedValueOnce({
+        runs: [
+          {
+            id: "run-1",
+            ...baseRun,
+            title: "Polled run",
+            status: "queued",
+            createdAt: "2026-03-25T10:00:00.000Z",
+            refweaverJobId: "job-1"
+          }
+        ],
+        pagination: { page: 1, pageSize: 50, hasNext: false, hasPrevious: false }
+      })
+      .mockResolvedValueOnce({
+        runs: [],
+        pagination: { page: 1, pageSize: 5, hasNext: false, hasPrevious: false }
+      });
     mockedPollAnalysisRun.mockResolvedValueOnce({
       id: "run-1",
       ...baseRun,
@@ -143,39 +180,56 @@ describe("DashboardView", () => {
 
     const renderer = await renderView();
 
-    expect(mockedPollAnalysisRun).toHaveBeenCalledWith("project-1", expect.objectContaining({ id: "run-1" }));
-    const text = getText(renderer);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
 
-    expect(text).toContain("finished");
-    expect(text).not.toContain("queued");
+    expect(mockedListRuns).toHaveBeenNthCalledWith(2, "project-1", {
+      page: 1,
+      pageSize: 5,
+      statusGroup: "terminal"
+    } as any);
+    expect(mockedPollAnalysisRun).toHaveBeenCalledWith("project-1", expect.objectContaining({ id: "run-1" }));
   });
 
   it("shows failed and missing terminal statuses clearly", async () => {
-    mockedListRuns.mockResolvedValueOnce({
-      runs: [
-        {
-          id: "run-1",
-          ...baseRun,
-          title: "Failed run",
-          status: "failed",
-          createdAt: "2026-03-25T10:00:00.000Z",
-          refweaverJobId: "job-1"
-        },
-        {
-          id: "run-2",
-          ...baseRun,
-          title: null,
-          status: "missing",
-          createdAt: "2026-03-24T10:00:00.000Z",
-          refweaverJobId: "job-2"
-        }
-      ],
-      pagination: { page: 1, pageSize: 10, hasNext: false, hasPrevious: false }
-    });
+    mockedListRuns
+      .mockResolvedValueOnce({
+        runs: [],
+        pagination: { page: 1, pageSize: 50, hasNext: false, hasPrevious: false }
+      })
+      .mockResolvedValueOnce({
+        runs: [
+          {
+            id: "run-1",
+            ...baseRun,
+            title: "Failed run",
+            status: "failed",
+            createdAt: "2026-03-25T10:00:00.000Z",
+            refweaverJobId: "job-1"
+          },
+          {
+            id: "run-2",
+            ...baseRun,
+            title: null,
+            status: "missing",
+            createdAt: "2026-03-24T10:00:00.000Z",
+            refweaverJobId: "job-2"
+          }
+        ],
+        pagination: { page: 1, pageSize: 5, hasNext: false, hasPrevious: false }
+      });
 
     const renderer = await renderView();
     const text = getText(renderer);
 
+    expect(mockedListRuns).toHaveBeenNthCalledWith(2, "project-1", {
+      page: 1,
+      pageSize: 5,
+      statusGroup: "terminal"
+    } as any);
     expect(text).toContain("failed");
     expect(text).toContain("failed");
     expect(text).not.toContain("missing");

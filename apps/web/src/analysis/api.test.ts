@@ -61,7 +61,7 @@ describe("analysis api", () => {
     });
   });
 
-  it("listRuns includes pagination and parses run lists", async () => {
+  it("listRuns includes pagination, status groups, and parses run lists", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -85,12 +85,12 @@ describe("analysis api", () => {
       )
     );
 
-    const result = await listRuns("project-1", { page: 2, pageSize: 5 });
+    const result = await listRuns("project-1", { page: 2, pageSize: 5, statusGroup: "terminal" } as any);
 
     expect(result.runs).toHaveLength(1);
     expect(result.pagination).toEqual({ page: 2, pageSize: 5, hasNext: true, hasPrevious: true });
     expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining("/projects/project-1/runs?page=2&page_size=5"),
+      expect.stringContaining("/projects/project-1/runs?page=2&page_size=5&status_group=terminal"),
       expect.objectContaining({ credentials: "include" })
     );
   });

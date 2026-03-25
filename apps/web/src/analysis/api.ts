@@ -195,11 +195,19 @@ export async function listRuns(
 ): Promise<AnalysisRunListResponse> {
   const page = pagination.page ?? 1;
   const pageSize = pagination.pageSize ?? 10;
+  const query = new URLSearchParams();
+  query.set("page", String(page));
+  query.set("page_size", String(pageSize));
+
+  if (pagination.statusGroup !== undefined) {
+    query.set("status_group", pagination.statusGroup);
+  }
+
   let response: Response;
 
   try {
     response = await fetch(
-      `${bffBaseUrl}/projects/${encodeURIComponent(projectId)}/runs?page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`,
+      `${bffBaseUrl}/projects/${encodeURIComponent(projectId)}/runs?${query.toString()}`,
       { credentials: "include" }
     );
   } catch {

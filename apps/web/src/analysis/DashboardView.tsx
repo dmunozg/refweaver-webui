@@ -24,9 +24,14 @@ function sortRunsNewestFirst(runs: AnalysisRunRecord[]): AnalysisRunRecord[] {
 function splitRuns(runs: AnalysisRunRecord[]) {
   const orderedRuns = sortRunsNewestFirst(runs);
   const inProgressRuns = orderedRuns.filter((run) => !isTerminalRunStatus(run.status));
-  const terminalRuns = orderedRuns.filter((run) => isTerminalRunStatus(run.status)).slice(0, terminalLimit);
 
-  return { inProgressRuns, terminalRuns };
+  return { inProgressRuns };
+}
+
+function selectTerminalRuns(runs: AnalysisRunRecord[]) {
+  return sortRunsNewestFirst(runs)
+    .filter((run) => isTerminalRunStatus(run.status))
+    .slice(0, terminalLimit);
 }
 
 function DashboardRunList({ runs }: { runs: AnalysisRunRecord[] }) {
@@ -44,29 +49,30 @@ function DashboardRunList({ runs }: { runs: AnalysisRunRecord[] }) {
 
 export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: DashboardViewProps) {
   const project = useDefaultProject();
-  const [runsState, setRunsState] = useState<DashboardRunsState>({ status: "loading", runs: [], error: null });
-  const runsRef = useRef<AnalysisRunRecord[]>([]);
+  const [inProgressRunsState, setInProgressRunsState] = useState<DashboardRunsState>({ status: "loading", runs: [], error: null });
+  const [terminalRunsState, setTerminalRunsState] = useState<DashboardRunsState>({ status: "loading", runs: [], error: null });
+  const inProgressRunsRef = useRef<AnalysisRunRecord[]>([]);
   const projectId = project.status === "ready" ? project.projectId : null;
   const projectError = project.status === "error" ? project.error : null;
 
   useEffect(() => {
-    runsRef.current = runsState.runs;
-  }, [runsState.runs]);
+    inProgressRunsRef.current = inProgressRunsState.runs;
+  }, [inProgressRunsState.runs]);
 
   useEffect(() => {
     let isActive = true;
-    let timeoutId: number | null = null;
-    let pollAttempt = 0;
 
     if (project.status === "error") {
-      setRunsState({ status: "error", runs: [], error: projectError });
+      setInProgressRunsState({ status: "error", runs: [], error: projectError });
+      setTerminalRunsState({ status: "error", runs: [], error: projectError });
       return () => {
         isActive = false;
       };
     }
 
     if (project.status !== "ready") {
-      setRunsState({ status: "loading", runs: [], error: null });
+      setInProgressRunsState({ status: "loading", runs: [], error: null });
+      setTerminalRunsState({ status: "loading", runs: [], error: null });
       return () => {
         isActive = false;
       };
@@ -78,24 +84,41 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
       };
     }
 
-    setRunsState({ status: "loading", runs: [], error: null });
+    setInProgressRunsState({ status: "loading", runs: [], error: null });
+    setTerminalRunsState({ status: "loading", runs: [], error: null });
 
-    async function loadRuns() {
+    async function loadInProgressRuns() {
       try {
         const response = await listRuns(projectId!, { page: 1, pageSize });
         if (!isActive) {
           return;
         }
 
-        setRunsState({ status: "ready", runs: sortRunsNewestFirst(response.runs), error: null });
+        setInProgressRunsState({ status: "ready", runs: sortRunsNewestFirst(response.runs), error: null });
       } catch {
         if (isActive) {
-          setRunsState({ status: "error", runs: [], error: "Could not load analysis runs." });
+          setInProgressRunsState({ status: "error", runs: [], error: "Could not load analysis runs." });
         }
       }
     }
 
-    void loadRuns();
+    async function loadTerminalRuns() {
+      try {
+        const response = await listRuns(projectId!, { page: 1, pageSize: terminalLimit, statusGroup: "terminal" });
+        if (!isActive) {
+          return;
+        }
+
+        setTerminalRunsState({ status: "ready", runs: selectTerminalRuns(response.runs), error: null });
+      } catch {
+        if (isActive) {
+          setTerminalRunsState({ status: "error", runs: [], error: "Could not load analysis runs." });
+        }
+      }
+    }
+
+    void loadInProgressRuns();
+    void loadTerminalRuns();
 
     return () => {
       isActive = false;
@@ -103,7 +126,7 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
   }, [project.status, projectId, projectError]);
 
   useEffect(() => {
-    if (project.status !== "ready" || runsState.status !== "ready") {
+    if (project.status !== "ready" || inProgressRunsState.status !== "ready") {
       return;
     }
 
@@ -116,7 +139,7 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
     let pollAttempt = 0;
 
     async function pollRuns() {
-      const inProgressRuns = runsRef.current.filter((run) => !isTerminalRunStatus(run.status));
+      const inProgressRuns = inProgressRunsRef.current.filter((run) => !isTerminalRunStatus(run.status));
       if (inProgressRuns.length === 0) {
         return;
       }
@@ -128,15 +151,12 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
         }
 
         const updatesById = new Map(updates.map((run) => [run.id, run]));
-        setRunsState((current) => {
+        setInProgressRunsState((current) => {
           if (current.status !== "ready") {
             return current;
           }
 
-          return {
-            ...current,
-            runs: current.runs.map((run) => updatesById.get(run.id) ?? run)
-          };
+          return { ...current, runs: current.runs.map((run) => updatesById.get(run.id) ?? run) };
         });
 
         pollAttempt += 1;
@@ -160,15 +180,14 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
         globalThis.clearTimeout(timeoutId);
       }
     };
-  }, [project.status, projectId, runsState.status]);
+  }, [project.status, projectId, inProgressRunsState.status]);
 
   const sections = useMemo(() => {
-    if (runsState.status !== "ready") {
-      return { inProgressRuns: [], terminalRuns: [] };
-    }
-
-    return splitRuns(runsState.runs);
-  }, [runsState]);
+    return {
+      inProgressRuns: inProgressRunsState.status === "ready" ? splitRuns(inProgressRunsState.runs).inProgressRuns : [],
+      terminalRuns: terminalRunsState.status === "ready" ? terminalRunsState.runs : []
+    };
+  }, [inProgressRunsState, terminalRunsState]);
 
   const handleCreateNewAnalysis = onCreateNewAnalysis ?? (() => {});
   const handleViewAllAnalyses = onViewAllAnalyses ?? (() => {});
@@ -183,8 +202,12 @@ export function DashboardView({ onCreateNewAnalysis, onViewAllAnalyses }: Dashbo
         View all
       </button>
 
-      {project.status === "loading" || runsState.status === "loading" ? <p>Loading analyses...</p> : null}
-      {projectError || runsState.status === "error" ? <p>{projectError ?? runsState.error}</p> : null}
+      {project.status === "loading" || inProgressRunsState.status === "loading" || terminalRunsState.status === "loading" ? (
+        <p>Loading analyses...</p>
+      ) : null}
+      {projectError || inProgressRunsState.status === "error" || terminalRunsState.status === "error" ? (
+        <p>{projectError ?? inProgressRunsState.error ?? terminalRunsState.error}</p>
+      ) : null}
 
       {sections.inProgressRuns.length > 0 ? (
         <section>
