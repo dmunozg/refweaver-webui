@@ -15,7 +15,7 @@ type DashboardRunsState =
 
 const terminalLimit = 5;
 const pageSize = 50;
-const pollIntervalMs = 5000;
+const pollIntervalMs = 1000;
 
 function sortRunsNewestFirst(runs: AnalysisRunRecord[]): AnalysisRunRecord[] {
   return [...runs].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
