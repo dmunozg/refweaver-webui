@@ -3,6 +3,7 @@ import { createApp } from "../app";
 import { createRunService } from "../runs/service";
 import type { AuthStore } from "../auth/store";
 import type { RunRecord, RunStore } from "../runs/types";
+import { RefweaverHttpError } from "../refweaver/errors";
 
 function buildAuthStore(userId = "user-1"): AuthStore {
   return {
@@ -174,6 +175,65 @@ describe("run route integration", () => {
     expect(poll.status).toBe(200);
     const pollBody = await poll.json();
     expect(pollBody.status).toBe("finished");
+  });
+
+  it("marks a missing upstream job as missing in polls and history", async () => {
+    const runService = createRunService({
+      store: createMemoryRunStore(),
+      refweaver: {
+        async analyze() {
+          return {
+            runId: "20000000-0000-4000-8000-000000000002",
+            status: "queued",
+            jobId: "30000000-0000-4000-8000-000000000002",
+            jobUrl: "/jobs/30000000-0000-4000-8000-000000000002"
+          };
+        },
+        async getJob() {
+          throw new RefweaverHttpError(404, "not_found", "Missing", null);
+        },
+        async getRun() {
+          return { run: { id: "up-run-2", title: null }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const app = createApp({ signupStore: buildAuthStore(), runService });
+
+    await app.request("/projects/40000000-0000-4000-8000-000000000002/runs", {
+      method: "POST",
+      headers: { cookie: "rw_session=known-token", "content-type": "application/json" },
+      body: JSON.stringify({ text: "Test sentence" })
+    });
+
+    const poll = await app.request(
+      "/projects/40000000-0000-4000-8000-000000000002/jobs/30000000-0000-4000-8000-000000000002",
+      {
+        headers: { cookie: "rw_session=known-token" }
+      }
+    );
+    expect(poll.status).toBe(200);
+    expect((await poll.json()).status).toBe("missing");
+
+    const list = await app.request("/projects/40000000-0000-4000-8000-000000000002/runs", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+    expect(list.status).toBe(200);
+    const listBody = await list.json();
+    expect(listBody.runs[0].status).toBe("missing");
   });
 
   it("lists newest runs first", async () => {

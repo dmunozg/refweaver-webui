@@ -6,6 +6,7 @@ import {
   RunValidationError
 } from "./service";
 import type { RunStore, RefweaverClient, RunRecord, ProjectLookup } from "./types";
+import { RefweaverHttpError } from "../refweaver/errors";
 
 function makeRecord(overrides: Partial<RunRecord> = {}): RunRecord {
   return {
@@ -394,6 +395,61 @@ describe("run service", () => {
     const result = await service.pollJob("user-1", "project-1", "job-1");
     expect(result.status).toBe("finished");
     expect(result.run?.refweaverRunId).toBe("up-run-1");
+  });
+
+  it("persists missing when upstream job is not found", async () => {
+    let updatedArgs: { id: string; status: string; refweaverRunId: string | null | undefined } | null = null;
+
+    const service = createRunService({
+      store: {
+        async createRun() {
+          return makeRecord();
+        },
+        async listRuns() {
+          return [];
+        },
+        async getRunById() {
+          return makeRecord();
+        },
+        async getRunByJobId() {
+          return makeRecord({ refweaverJobId: "job-1" });
+        },
+        async updateRunStatus(id, status, refweaverRunId) {
+          updatedArgs = { id, status, refweaverRunId };
+          return makeRecord({ status, refweaverRunId: refweaverRunId ?? null });
+        }
+      },
+      refweaver: {
+        async analyze() {
+          return { runId: "up-run-1", status: "queued", jobId: "job-1", jobUrl: "/jobs/job-1" };
+        },
+        async getJob() {
+          throw new RefweaverHttpError(404, "not_found", "Missing", null);
+        },
+        async getRun() {
+          return { run: { id: "up-run-1" }, sentences: [], verdicts: {}, evaluations: [] };
+        }
+      },
+      projects: {
+        async getProject(ownerUserId, projectId) {
+          return {
+            id: projectId,
+            ownerUserId,
+            name: "Project",
+            teamId: null,
+            deletedAt: null,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+        }
+      }
+    });
+
+    const result = await service.pollJob("user-1", "project-1", "job-1");
+
+    expect(result.status).toBe("missing");
+    expect(result.run.status).toBe("missing");
+    expect(updatedArgs).toEqual({ id: "local-run-1", status: "missing", refweaverRunId: "up-run-1" });
   });
 
   it("throws for missing run in project", async () => {

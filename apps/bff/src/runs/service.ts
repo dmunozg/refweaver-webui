@@ -1,4 +1,5 @@
 import { ProjectNotFoundError } from "../projects/service";
+import { RefweaverHttpError } from "../refweaver/errors";
 import type { RunRecord, ProjectLookup, RefweaverClient, RunStore } from "./types";
 
 export class ProjectInactiveError extends Error {
@@ -116,7 +117,23 @@ export function createRunService(deps: RunServiceDeps) {
         throw new RunNotFoundError();
       }
 
-      const job = await deps.refweaver.getJob(userId, jobId);
+      let job;
+      try {
+        job = await deps.refweaver.getJob(userId, jobId);
+      } catch (error) {
+        if (error instanceof RefweaverHttpError && error.status === 404) {
+          const updated = await deps.store.updateRunStatus(local.id, "missing", local.refweaverRunId);
+          if (!updated) {
+            throw new RunNotFoundError();
+          }
+          return {
+            status: "missing",
+            run: updated
+          };
+        }
+
+        throw error;
+      }
       if (job.userId !== userId) {
         throw new RunNotFoundError();
       }
