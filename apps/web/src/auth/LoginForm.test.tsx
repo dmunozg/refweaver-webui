@@ -66,7 +66,7 @@ describe("LoginForm", () => {
     const inputs = renderer!.root.findAllByType("input");
     const error = renderer!.root.findByType("p");
 
-    expect(inputs[0]!.props.autoComplete).toBe("username");
+    expect(inputs[0]!.props.autoComplete).toBe("email");
     expect(inputs[1]!.props.autoComplete).toBe("current-password");
     expect(inputs[0]!.props.required).toBe(true);
     expect(inputs[1]!.props.required).toBe(true);

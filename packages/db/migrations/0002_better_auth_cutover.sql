@@ -1,4 +1,5 @@
 ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_username_unique";--> statement-breakpoint
+ALTER TABLE "users" ALTER COLUMN "username" DROP NOT NULL;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "email_verified" boolean NOT NULL DEFAULT false;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "image" text;--> statement-breakpoint
 ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "admin_role" text NOT NULL DEFAULT 'user';--> statement-breakpoint

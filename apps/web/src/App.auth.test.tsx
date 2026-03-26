@@ -26,6 +26,8 @@ describe("App auth shell", () => {
         username: "ada",
         email: "ada@example.com",
         name: "Ada",
+        adminRole: "admin",
+        projectId: "project-1",
         teamId: null
       },
       error: null
@@ -35,8 +37,8 @@ describe("App auth shell", () => {
   it("renders authenticated shell when user is authenticated", () => {
     mockedUseAuth.mockReturnValue({
       state: authenticatedState(),
-      refresh: async () => {},
       login: async () => {},
+      signup: async () => {},
       logout: async () => {}
     });
 
@@ -47,7 +49,7 @@ describe("App auth shell", () => {
     const text = JSON.stringify(renderer!.toJSON());
 
     expect(text).toContain("Welcome");
-    expect(text).toContain("Ada");
+    expect(text).toContain("ada");
     expect(text).toContain("Log out");
   });
 
@@ -58,8 +60,8 @@ describe("App auth shell", () => {
         user: null,
         error: null
       },
-      refresh: async () => {},
       login: async () => {},
+      signup: async () => {},
       logout: async () => {}
     });
 
@@ -86,8 +88,8 @@ describe("App auth shell", () => {
         user: null,
         error: null
       },
-      refresh: async () => {},
       login,
+      signup: async () => {},
       logout: async () => {}
     });
 
@@ -118,8 +120,8 @@ describe("App auth shell", () => {
 
     mockedUseAuth.mockReturnValue({
       state: authenticatedState(),
-      refresh: async () => {},
       login: async () => {},
+      signup: async () => {},
       logout
     });
 
@@ -149,8 +151,8 @@ describe("App auth shell", () => {
 
     mockedUseAuth.mockReturnValue({
       state: authenticatedState(),
-      refresh: async () => {},
       login: async () => {},
+      signup: async () => {},
       logout
     });
 
