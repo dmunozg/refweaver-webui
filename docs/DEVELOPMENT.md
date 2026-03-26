@@ -94,3 +94,26 @@ Run all tests:
 ```bash
 bun run test
 ```
+
+## Compose Test Runs
+
+Run backend Vitest with a disposable Postgres database:
+
+```bash
+podman compose -f compose.yml -f compose.test.bff.yml up --abort-on-container-exit --exit-code-from bff-tests bff-tests
+```
+
+Run frontend Vitest with a disposable Postgres database and a live BFF:
+
+```bash
+podman compose -f compose.yml -f compose.test.web.yml up --abort-on-container-exit --exit-code-from web-tests web-tests
+```
+
+Tear down and remove the test database volume after a run:
+
+```bash
+podman compose -f compose.yml -f compose.test.bff.yml down -v
+podman compose -f compose.yml -f compose.test.web.yml down -v
+```
+
+These compose test flows run Vitest only. E2E is intentionally excluded.
