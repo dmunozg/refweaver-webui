@@ -8,13 +8,15 @@
 ## Environment
 
 1. Copy `.env.example` to `.env`.
-2. Set `DATABASE_URL`, `SESSION_SECRET`, and `REFWEAVER_API_BASE_URL`.
+2. Set `DATABASE_URL`, `SESSION_SECRET`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `REFWEAVER_API_BASE_URL`.
 
 ## Podman Compose (Recommended)
 
 1. Copy `.env.example` to `.env`.
 2. Set at minimum:
    - `SESSION_SECRET`
+   - `BETTER_AUTH_SECRET`
+   - `BETTER_AUTH_URL`
    - `REFWEAVER_API_BASE_URL` (required)
 
 Optional host exposure controls:
