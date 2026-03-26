@@ -66,6 +66,8 @@ Generate migrations from schema:
 DATABASE_URL="postgres://postgres:postgres@localhost:5432/refweaver_webui" bun run --filter @refweaver/db drizzle:generate
 ```
 
+Forward-only compatibility note: `analysis_runs.title` was added in a new forward migration (`0002_analysis_runs_title.sql`) so existing databases can move forward without rewriting `0001_little_daimon_hellstrom.sql`.
+
 ## Run Apps
 
 Run BFF:

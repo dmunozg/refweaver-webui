@@ -15,6 +15,13 @@
       "when": 1773865757525,
       "tag": "0001_little_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774483200000,
+      "tag": "0002_analysis_runs_title",
+      "breakpoints": true
     }
   ]
 }
