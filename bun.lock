@@ -12,6 +12,7 @@
     "apps/bff": {
       "name": "@refweaver/bff",
       "dependencies": {
+        "@better-auth/drizzle-adapter": "^1.5.6",
         "@refweaver/db": "workspace:*",
         "better-auth": "^1.5.6",
         "drizzle-orm": "^0.44.5",

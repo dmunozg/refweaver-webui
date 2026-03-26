@@ -15,6 +15,13 @@
       "when": 1773865757525,
       "tag": "0001_little_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774490000000,
+      "tag": "0002_better_auth_cutover",
+      "breakpoints": true
     }
   ]
 }
