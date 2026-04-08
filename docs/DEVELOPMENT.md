@@ -87,6 +87,23 @@ Run Web app:
 bun run --filter @refweaver/web dev
 ```
 
+## Migration Safety
+
+### Irreversible Migrations
+
+The following migrations perform `DROP COLUMN` and are **non-reversible without a full DB restore**:
+
+| Migration | Columns Dropped | Risk |
+|----------|-----------------|------|
+| `0003_drop_legacy_auth_columns.sql` | `password_hash`, `team_id` | Data loss. Ensure all apps use Better Auth before applying. |
+
+**Before applying any migration:**
+- Verify all application instances are running the newer codebase
+- Ensure a verified DB snapshot or backup exists
+- Test the migration on a staging environment first
+
+**Rollback path:** Full DB snapshot restore required. No `ALTER TABLE ADD COLUMN` can undo a `DROP COLUMN`.
+
 ## Tests
 
 Run all tests:
