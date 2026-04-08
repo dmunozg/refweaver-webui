@@ -9,9 +9,13 @@ type RunService = ReturnType<typeof createRunService>;
 
 type AuthStore = BetterAuthApp;
 
+function authUser(c: import("hono").Context): { id: string } {
+  return (c as import("hono").Context<{ Variables: { authUser: { id: string } } }>).get("authUser");
+}
+
 export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: RunService): void {
   app.post("/projects/:projectId/runs", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const u = authUser(c);
     const projectId = c.req.param("projectId");
     if (!isUuid(projectId)) {
       return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
@@ -34,7 +38,7 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
     }
 
     try {
-      const run = await runService.submitRun(authUser.id, projectId, text);
+      const run = await runService.submitRun(u.id, projectId, text);
       return c.json({ run }, 202);
     } catch (error) {
       const mapped = toErrorResponse(error);
@@ -43,13 +47,13 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
   });
 
   app.get("/projects/:projectId/runs", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const u = authUser(c);
     const projectId = c.req.param("projectId");
     if (!isUuid(projectId)) {
       return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
     }
     try {
-      const runs = await runService.listRuns(authUser.id, projectId);
+      const runs = await runService.listRuns(u.id, projectId);
       return c.json({ runs }, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);
@@ -58,7 +62,7 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
   });
 
   app.get("/projects/:projectId/runs/:runId", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const u = authUser(c);
     const projectId = c.req.param("projectId");
     const runId = c.req.param("runId");
     if (!isUuid(projectId)) {
@@ -68,7 +72,7 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
       return c.json({ error: { code: "validation_error", message: "Invalid run id" } }, 422);
     }
     try {
-      const run = await runService.getRun(authUser.id, projectId, runId);
+      const run = await runService.getRun(u.id, projectId, runId);
       return c.json({ run }, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);
@@ -77,7 +81,7 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
   });
 
   app.get("/projects/:projectId/jobs/:jobId", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const u = authUser(c);
     const projectId = c.req.param("projectId");
     const jobId = c.req.param("jobId");
     if (!isUuid(projectId)) {
@@ -87,7 +91,7 @@ export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: R
       return c.json({ error: { code: "validation_error", message: "Invalid job id" } }, 422);
     }
     try {
-      const result = await runService.pollJob(authUser.id, projectId, jobId);
+      const result = await runService.pollJob(u.id, projectId, jobId);
       return c.json(result, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);

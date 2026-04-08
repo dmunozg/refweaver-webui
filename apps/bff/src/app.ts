@@ -9,6 +9,10 @@ import { registerRunRoutes } from "./routes/runs";
 import type { createProjectService } from "./projects/service";
 import type { createRunService } from "./runs/service";
 
+interface AuthVariables {
+  authUser: { id: string };
+}
+
 type AppDeps = {
   auth: BetterAuthApp;
   allowedOrigins?: string[];
@@ -17,7 +21,7 @@ type AppDeps = {
 };
 
 export function createApp(deps: AppDeps) {
-  const app = new Hono();
+  const app = new Hono<{ Variables: AuthVariables }>();
   const auth = deps.auth;
 
   const allowedOrigins = deps.allowedOrigins ?? ["http://localhost:5173", "http://127.0.0.1:5173"];

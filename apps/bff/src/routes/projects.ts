@@ -9,6 +9,10 @@ type ProjectService = ReturnType<typeof createProjectService>;
 
 type AuthStore = BetterAuthApp;
 
+function authUser(c: import("hono").Context): { id: string } {
+  return (c as import("hono").Context<{ Variables: { authUser: { id: string } } }>).get("authUser");
+}
+
 export function registerProjectRoutes(app: Hono, authStore: AuthStore, projectService: ProjectService): void {
   app.post("/projects", requireAuth(authStore), async (c) => {
     const authUser = (c as any).get("authUser") as { id: string };

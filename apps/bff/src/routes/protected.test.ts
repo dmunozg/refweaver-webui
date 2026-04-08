@@ -55,4 +55,25 @@ describe("protected routes", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("returns 503 when getSession throws", async () => {
+    const app = createApp({
+      auth: {
+        ...buildAuth(),
+        api: {
+          async getSession() {
+            throw new Error("auth backend unavailable");
+          }
+        }
+      }
+    });
+
+    const response = await app.request("/protected/ping", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body.error).toBe("auth_unavailable");
+  });
 });

@@ -60,26 +60,32 @@ export function createBetterAuth(db: Database, env: AuthEnv): BetterAuthApp {
       user: {
         create: {
           after: async (user) => {
-            await db.execute(sql`select pg_advisory_xact_lock(424242)`);
-            const [{ total }] = await db.select({ total: sql<number>`count(*)` }).from(users);
-            const isFirstUser = Number(total) === 1;
+            await db.transaction(async (tx) => {
+              await tx.execute(sql`select pg_advisory_xact_lock(424242)`);
 
-            const [project] = await db
-              .insert(projects)
-              .values({
-                name: "My First Project",
-                ownerUserId: user.id,
-                teamId: null
-              })
-              .returning({ id: projects.id });
+              // Check if any admin exists - only the first admin gets admin role
+              const [{ adminExists }] = await tx
+                .select({ adminExists: sql<boolean>`exists(select 1 from "users" where "admin_role" = 'admin')` })
+                .from(users)
+                .limit(1);
 
-            await db
-              .update(users)
-              .set({
-                adminRole: isFirstUser ? "admin" : "user",
-                projectId: project.id
-              })
-              .where(eq(users.id, user.id));
+              const [project] = await tx
+                .insert(projects)
+                .values({
+                  name: "My First Project",
+                  ownerUserId: user.id,
+                  teamId: null
+                })
+                .returning({ id: projects.id });
+
+              await tx
+                .update(users)
+                .set({
+                  adminRole: adminExists ? "user" : "admin",
+                  projectId: project.id
+                })
+                .where(eq(users.id, user.id));
+            });
           }
         }
       }
