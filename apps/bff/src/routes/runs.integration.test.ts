@@ -2,32 +2,23 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { createRunService } from "../runs/service";
 import type { RunRecord, RunStore } from "../runs/types";
+import type { BetterAuthApp } from "../auth/better-auth";
 
-function buildAuthStore(userId = "user-1") {
+function buildAuth(userId = "user-1"): BetterAuthApp {
   return {
-    async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-      return fn(this);
+    async handler() {
+      return new Response(null, { status: 204 });
     },
-    async createUser() {
-      return { id: userId };
-    },
-    async createProject() {
-      return { id: "project-1" };
-    },
-    async createSession() {
-      return { id: "session-1" };
-    },
-    async findUserByIdentifier() {
-      return null;
-    },
-    async findUserById() {
-      return { id: userId, username: "ada", email: "ada@example.com", name: "Ada", teamId: null };
-    },
-    async findSessionByTokenHash() {
-      return { id: "session-1", userId, expiresAt: new Date(Date.now() + 60_000) };
-    },
-    async deleteSessionByTokenHash() {
-      return;
+    api: {
+      async getSession({ headers }) {
+        if (!headers.get("cookie")) {
+          return null;
+        }
+
+        return {
+          user: { id: userId, username: "ada", email: "ada@example.com", name: "Ada", adminRole: "user", projectId: null }
+        };
+      }
     }
   };
 }
@@ -124,7 +115,7 @@ describe("run route integration", () => {
       }
     });
 
-    const app = createApp({ signupStore: buildAuthStore(), runService });
+    const app = createApp({ auth: buildAuth(), runService });
 
     const submit = await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
       method: "POST",
@@ -185,8 +176,8 @@ describe("run route integration", () => {
       }
     });
 
-    const ownerApp = createApp({ signupStore: buildAuthStore("user-1"), runService });
-    const otherApp = createApp({ signupStore: buildAuthStore("user-2"), runService });
+    const ownerApp = createApp({ auth: buildAuth("user-1"), runService });
+    const otherApp = createApp({ auth: buildAuth("user-2"), runService });
 
     const submit = await ownerApp.request("/projects/40000000-0000-4000-8000-000000000009/runs", {
       method: "POST",
@@ -240,7 +231,7 @@ describe("run route integration", () => {
       }
     });
 
-    const app = createApp({ signupStore: buildAuthStore("user-1"), runService });
+    const app = createApp({ auth: buildAuth("user-1"), runService });
     const response = await app.request("/projects/40000000-0000-4000-8000-000000000001/runs", {
       method: "POST",
       headers: { cookie: "rw_session=known-token", "content-type": "application/json" },

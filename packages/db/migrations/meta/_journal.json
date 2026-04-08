@@ -22,6 +22,13 @@
       "when": 1774490000000,
       "tag": "0002_better_auth_cutover",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774491000000,
+      "tag": "0003_drop_legacy_auth_columns",
+      "breakpoints": true
     }
   ]
 }

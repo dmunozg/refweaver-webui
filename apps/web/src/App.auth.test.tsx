@@ -27,8 +27,7 @@ describe("App auth shell", () => {
         email: "ada@example.com",
         name: "Ada",
         adminRole: "admin",
-        projectId: "project-1",
-        teamId: null
+        projectId: "project-1"
       },
       error: null
     };

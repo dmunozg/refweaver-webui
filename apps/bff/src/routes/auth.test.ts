@@ -1,173 +1,38 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../app";
+import type { BetterAuthApp } from "../auth/better-auth";
+
+function buildAuth(): BetterAuthApp {
+  return {
+    handler: vi.fn(async (request: Request) => {
+      return new Response(JSON.stringify({ path: new URL(request.url).pathname }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    }),
+    api: {
+      async getSession() {
+        return {
+          user: { id: "user-1", username: "ada", email: "ada@example.com", name: "Ada", adminRole: "user", projectId: null }
+        };
+      }
+    }
+  };
+}
 
 describe("auth routes", () => {
-  function buildStore() {
-    return {
-      async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-        return fn(this);
-      },
-      async createUser() {
-        return { id: "user-1" };
-      },
-      async createProject() {
-        return { id: "project-1" };
-      },
-      async createSession() {
-        return { id: "session-1" };
-      },
-      async findUserByIdentifier() {
-        return {
-          id: "user-1",
-          username: "ada",
-          email: "ada@example.com",
-          name: "Ada",
-          passwordHash: await Bun.password.hash("safe-pass")
-        };
-      },
-      async findUserById() {
-        return {
-          id: "user-1",
-          username: "ada",
-          email: "ada@example.com",
-          name: "Ada",
-          teamId: null
-        };
-      },
-      async findSessionByTokenHash() {
-        return { id: "session-1", userId: "user-1", expiresAt: new Date(Date.now() + 60_000) };
-      },
-      async deleteSessionByTokenHash() {
-        return;
-      }
-    };
-  }
-
-  it("returns 409 for duplicate username/email", async () => {
-    const duplicateError = Object.assign(new Error("duplicate"), { code: "23505" });
-
-    const app = createApp({
-      signupStore: {
-        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-          return fn(this);
-        },
-        async createUser() {
-          throw duplicateError;
-        },
-        async createProject() {
-          return { id: "project-1" };
-        },
-        async createSession() {
-          return { id: "session-1" };
-        },
-        async findUserByIdentifier() {
-          return null;
-        },
-        async findUserById() {
-          return null;
-        },
-        async findSessionByTokenHash() {
-          return null;
-        },
-        async deleteSessionByTokenHash() {
-          return;
-        }
-      }
-    });
-
-    const response = await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        username: "ada",
-        email: "ada@example.com",
-        name: "Ada Lovelace",
-        password: "safe-pass"
-      })
-    });
-
-    expect(response.status).toBe(409);
-  });
-
-  it("logs in and sets session cookie", async () => {
-    const app = createApp({ signupStore: buildStore() });
+  it("proxies auth requests to Better Auth", async () => {
+    const auth = buildAuth();
+    const app = createApp({ auth });
 
     const response = await app.request("/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier: "ada", password: "safe-pass" })
+      body: JSON.stringify({ email: "ada@example.com", password: "safe-pass" })
     });
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("set-cookie")).toContain("rw_session=");
-  });
-
-  it("returns current user from session", async () => {
-    const app = createApp({ signupStore: buildStore() });
-
-    const response = await app.request("/auth/me", {
-      headers: { cookie: "rw_session=known-token" }
-    });
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.user.id).toBe("user-1");
-  });
-
-  it("logs out and clears cookie", async () => {
-    const app = createApp({ signupStore: buildStore() });
-
-    const response = await app.request("/auth/logout", {
-      method: "POST",
-      headers: { cookie: "rw_session=known-token" }
-    });
-
-    expect(response.status).toBe(204);
-    expect(response.headers.get("set-cookie")).toContain("rw_session=");
-  });
-
-  it("returns 401 from /auth/me for expired session", async () => {
-    const app = createApp({
-      signupStore: {
-        ...buildStore(),
-        async findSessionByTokenHash() {
-          return {
-            id: "session-1",
-            userId: "user-1",
-            expiresAt: new Date(Date.now() - 60_000)
-          };
-        }
-      }
-    });
-
-    const response = await app.request("/auth/me", {
-      headers: { cookie: "rw_session=known-token" }
-    });
-
-    expect(response.status).toBe(401);
-  });
-
-  it("returns 422 for malformed signup json", async () => {
-    const app = createApp({ signupStore: buildStore() });
-
-    const response = await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{"
-    });
-
-    expect(response.status).toBe(422);
-  });
-
-  it("returns 422 for malformed login json", async () => {
-    const app = createApp({ signupStore: buildStore() });
-
-    const response = await app.request("/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{"
-    });
-
-    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({ path: "/auth/login" });
+    expect(auth.handler).toHaveBeenCalledTimes(1);
   });
 });

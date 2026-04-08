@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { projects, users } from "@refweaver/db";
+import { projects, users, type Database } from "@refweaver/db";
 
 export type BetterAuthApp = {
   handler(request: Request): Response | Promise<Response>;
@@ -16,7 +16,7 @@ type AuthEnv = {
   BFF_ALLOWED_ORIGINS: string[];
 };
 
-export function createBetterAuth(db: any, env: AuthEnv): BetterAuthApp {
+export function createBetterAuth(db: Database, env: AuthEnv): BetterAuthApp {
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,
@@ -60,6 +60,7 @@ export function createBetterAuth(db: any, env: AuthEnv): BetterAuthApp {
       user: {
         create: {
           after: async (user) => {
+            await db.execute(sql`select pg_advisory_xact_lock(424242)`);
             const [{ total }] = await db.select({ total: sql<number>`count(*)` }).from(users);
             const isFirstUser = Number(total) === 1;
 

@@ -2,17 +2,11 @@ import { describe, expect, it } from "vitest";
 import { accounts, analysisRuns, projects, sessions, users, verifications } from "./index";
 
 describe("schema", () => {
-  it("includes nullable team placeholders", () => {
-    expect(users.teamId).toBeDefined();
-    expect(projects.teamId).toBeDefined();
-  });
-
   it("includes Better Auth compatible user fields", () => {
     expect(users.emailVerified).toBeDefined();
     expect(users.image).toBeDefined();
     expect(users.adminRole).toBeDefined();
     expect(users.projectId).toBeDefined();
-    expect(users.passwordHash).toBeDefined();
     expect(users.username).toBeDefined();
   });
 

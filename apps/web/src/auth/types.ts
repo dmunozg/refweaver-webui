@@ -5,7 +5,6 @@ export type AuthUser = {
   name: string;
   adminRole: "user" | "admin";
   projectId: string | null;
-  teamId: string | null;
 };
 
 export type AuthState =

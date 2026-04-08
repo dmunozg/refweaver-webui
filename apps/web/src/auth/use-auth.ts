@@ -2,16 +2,24 @@ import { useMemo } from "react";
 import { authClient } from "./client";
 import type { AuthState, AuthUser } from "./types";
 
-function normalizeUser(input: Record<string, unknown>): AuthUser {
+function normalizeUser(input: unknown): AuthUser | null {
+  if (!input || typeof input !== "object") {
+    return null;
+  }
+
   const user = input as Record<string, unknown>;
+  if (typeof user.id !== "string" || typeof user.email !== "string" || typeof user.name !== "string") {
+    return null;
+  }
+
+  const adminRole = user.adminRole === "admin" ? "admin" : "user";
   return {
-    id: String(user.id),
-    username: typeof user.username === "string" ? user.username : null,
-    email: String(user.email),
-    name: typeof user.name === "string" ? user.name : "",
-    adminRole: user.adminRole === "admin" ? "admin" : "user",
-    projectId: typeof user.projectId === "string" ? user.projectId : null,
-    teamId: typeof user.teamId === "string" ? user.teamId : null
+    id: user.id,
+    username: typeof user.username === "string" && user.username.trim().length > 0 ? user.username : null,
+    email: user.email,
+    name: user.name,
+    adminRole,
+    projectId: typeof user.projectId === "string" && user.projectId.trim().length > 0 ? user.projectId : null
   };
 }
 
@@ -28,7 +36,12 @@ export function useAuth() {
     }
 
     if (session.data?.user) {
-      return { status: "authenticated", user: normalizeUser(session.data.user), error: null };
+      const normalizedUser = normalizeUser(session.data.user);
+      if (!normalizedUser) {
+        return { status: "error", user: null, error: "Invalid session payload" };
+      }
+
+      return { status: "authenticated", user: normalizedUser, error: null };
     }
 
     return { status: "signed_out", user: null, error: null };
@@ -63,7 +76,11 @@ export function useAuth() {
   }
 
   async function logout() {
-    await authClient.signOut();
+    const result = await authClient.signOut();
+    if (result.error) {
+      throw result.error;
+    }
+
     await session.refetch();
   }
 

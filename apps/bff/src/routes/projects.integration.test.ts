@@ -2,32 +2,23 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
 import { createProjectService } from "../projects/service";
 import type { ProjectRecord, ProjectStore } from "../projects/types";
+import type { BetterAuthApp } from "../auth/better-auth";
 
-function buildAuthStore(userId = "user-1") {
+function buildAuth(userId = "user-1"): BetterAuthApp {
   return {
-    async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-      return fn(this);
+    async handler() {
+      return new Response(null, { status: 204 });
     },
-    async createUser() {
-      return { id: userId };
-    },
-    async createProject() {
-      return { id: "project-1" };
-    },
-    async createSession() {
-      return { id: "session-1" };
-    },
-    async findUserByIdentifier() {
-      return null;
-    },
-    async findUserById() {
-      return { id: userId, username: "ada", email: "ada@example.com", name: "Ada", teamId: null };
-    },
-    async findSessionByTokenHash() {
-      return { id: "session-1", userId, expiresAt: new Date(Date.now() + 60_000) };
-    },
-    async deleteSessionByTokenHash() {
-      return;
+    api: {
+      async getSession({ headers }) {
+        if (!headers.get("cookie")) {
+          return null;
+        }
+
+        return {
+          user: { id: userId, username: "ada", email: "ada@example.com", name: "Ada", adminRole: "user", projectId: null }
+        };
+      }
     }
   };
 }
@@ -96,7 +87,7 @@ function createMemoryProjectStore(): ProjectStore {
 describe("project route integration", () => {
   it("creates, archives, lists with include_deleted, and restores project", async () => {
     const projectService = createProjectService(createMemoryProjectStore());
-    const app = createApp({ signupStore: buildAuthStore(), projectService });
+    const app = createApp({ auth: buildAuth(), projectService });
 
     const createResponse = await app.request("/projects", {
       method: "POST",
@@ -134,8 +125,8 @@ describe("project route integration", () => {
 
   it("denies cross-user project access", async () => {
     const projectService = createProjectService(createMemoryProjectStore());
-    const ownerApp = createApp({ signupStore: buildAuthStore("user-1"), projectService });
-    const otherUserApp = createApp({ signupStore: buildAuthStore("user-2"), projectService });
+    const ownerApp = createApp({ auth: buildAuth("user-1"), projectService });
+    const otherUserApp = createApp({ auth: buildAuth("user-2"), projectService });
 
     const created = await ownerApp.request("/projects", {
       method: "POST",

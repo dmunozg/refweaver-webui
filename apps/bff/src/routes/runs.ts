@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import type { BetterAuthApp } from "../auth/better-auth";
 import { requireAuth } from "../middleware/require-auth";
 import { toErrorResponse } from "../http/errors";
 import { isUuid } from "../http/validation";
@@ -6,7 +7,7 @@ import type { createRunService } from "../runs/service";
 
 type RunService = ReturnType<typeof createRunService>;
 
-type AuthStore = Parameters<typeof requireAuth>[0];
+type AuthStore = BetterAuthApp;
 
 export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: RunService): void {
   app.post("/projects/:projectId/runs", requireAuth(authStore), async (c) => {

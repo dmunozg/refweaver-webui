@@ -10,8 +10,7 @@ describe("getUserDisplayName", () => {
         email: "ada@example.com",
         name: "Ada Lovelace",
         adminRole: "admin",
-        projectId: null,
-        teamId: null
+        projectId: null
       })
     ).toBe("ada");
 
@@ -22,8 +21,7 @@ describe("getUserDisplayName", () => {
         email: "ada@example.com",
         name: "Ada Lovelace",
         adminRole: "admin",
-        projectId: null,
-        teamId: null
+        projectId: null
       })
     ).toBe("Ada Lovelace");
 
@@ -34,8 +32,7 @@ describe("getUserDisplayName", () => {
         email: "ada@example.com",
         name: "",
         adminRole: "admin",
-        projectId: null,
-        teamId: null
+        projectId: null
       })
     ).toBe("ada");
   });
