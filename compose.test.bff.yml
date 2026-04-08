@@ -19,7 +19,7 @@ services:
       [
         "sh",
         "-lc",
-        "bun install && bun run --filter @refweaver/bff test"
+        "bun install && /workspace/packages/db/scripts/bootstrap.sh && bun run --filter @refweaver/bff test"
       ]
     depends_on:
       db:
@@ -29,7 +29,7 @@ services:
       TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/refweaver_webui_test
       SESSION_SECRET: replace-with-random-secret
       BETTER_AUTH_SECRET: replace-with-random-secret
-      BETTER_AUTH_URL: http://bff:3001
+      BETTER_AUTH_URL: http://bff-tests:3001
       REFWEAVER_API_BASE_URL: http://refweaver.invalid
       REFWEAVER_API_KEY: ""
       BFF_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
