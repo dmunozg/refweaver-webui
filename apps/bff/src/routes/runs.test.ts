@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../app";
 import type { BetterAuthApp } from "../auth/better-auth";
 
@@ -16,6 +16,19 @@ function buildAuth(userId = "user-1"): BetterAuthApp {
         return {
           user: { id: userId, username: "ada", email: "ada@example.com", name: "Ada", adminRole: "user", projectId: null }
         };
+      }
+    }
+  };
+}
+
+function buildAuthNoSession(): BetterAuthApp {
+  return {
+    async handler() {
+      return new Response(null, { status: 204 });
+    },
+    api: {
+      async getSession() {
+        return null;
       }
     }
   };
@@ -55,5 +68,13 @@ describe("run routes", () => {
       headers: { cookie: "rw_session=known-token" }
     });
     expect(response.status).toBe(422);
+  });
+
+  it("denies GET /projects/:id/runs without session", async () => {
+    const app = createApp({ auth: buildAuthNoSession(), runService: buildRunService() as never });
+    const response = await app.request("/projects/00000000-0000-4000-8000-000000000001/runs", {
+      headers: { cookie: "rw_session=unknown-token" }
+    });
+    expect(response.status).toBe(401);
   });
 });

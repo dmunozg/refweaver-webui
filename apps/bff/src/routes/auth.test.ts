@@ -14,6 +14,12 @@ function buildAuth(): BetterAuthApp {
             headers: { "content-type": "application/json" }
           });
         }
+        if (body.email !== "ada@example.com") {
+          return new Response(JSON.stringify({ error: "user not found" }), {
+            status: 401,
+            headers: { "content-type": "application/json" }
+          });
+        }
       }
       if (url.pathname === "/auth/sign-up" && request.method === "POST") {
         const body = await request.json();
@@ -68,7 +74,7 @@ describe("auth routes", () => {
     expect(response.status).toBe(401);
   });
 
-  it("passes through unknown email (mock proxy behavior)", async () => {
+  it("rejects unknown email with 401", async () => {
     const auth = buildAuth();
     const app = createApp({ auth });
 
@@ -78,7 +84,7 @@ describe("auth routes", () => {
       body: JSON.stringify({ email: "unknown@example.com", password: "any-password" })
     });
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(401);
     expect(auth.handler).toHaveBeenCalled();
   });
 

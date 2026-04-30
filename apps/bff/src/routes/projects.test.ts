@@ -106,4 +106,14 @@ describe("project routes", () => {
     const body = await response.json();
     expect(body.error.code).toBe("validation_error");
   });
+
+  it("rejects POST /projects with malformed JSON body", async () => {
+    const app = createApp({ auth: buildAuth(), projectService: buildProjectService() });
+    const response = await app.request("/projects", {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: "rw_session=known-token" },
+      body: "{ invalid json }"
+    });
+    expect(response.status).toBe(422);
+  });
 });
