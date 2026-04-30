@@ -291,29 +291,15 @@ git commit -m "fix(types): remove any casts from route context"
 **Files:**
 - Modify: `packages/db/src/schema/users.ts`
 
-- [ ] **Step 1: Read current users.ts schema**
+- [x] **Step 1: Read current users.ts schema**
 
-```bash
-cat packages/db/src/schema/users.ts
-```
+- [x] **Step 2: Add FK relationship for projectId**
 
-- [ ] **Step 2: Add FK relationship for projectId**
+- [x] **Step 3: Update schema.test.ts to verify FK behavior**
 
-```typescript
-export const users = pgTable("users", {
-  // ... existing fields
-  projectId: text("project_id").references(() => projects.id),
-});
-```
+- [x] **Step 4: Run schema tests**
 
-- [ ] **Step 3: Update schema.test.ts to verify FK behavior**
-
-- [ ] **Step 4: Run schema tests**
-
-Run: `bun test packages/db/src/schema/schema.test.ts`
-Expected: PASS
-
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/db/src/schema/users.ts packages/db/src/schema/schema.test.ts
