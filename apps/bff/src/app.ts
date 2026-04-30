@@ -9,7 +9,7 @@ import { registerRunRoutes } from "./routes/runs";
 import type { createProjectService } from "./projects/service";
 import type { createRunService } from "./runs/service";
 
-interface AuthVariables {
+export interface AuthVariables {
   authUser: { id: string };
 }
 

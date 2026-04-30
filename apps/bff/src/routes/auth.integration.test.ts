@@ -50,19 +50,25 @@ async function initDb(): Promise<void> {
 await initDb();
 
 describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
-  let connection: ReturnType<typeof createDb> | null = null;
+  // connection is always set in beforeAll before any test runs; the non-null assertion
+  // reflects that the suite throws if dbConnection is null at setup time.
+  let connection: ReturnType<typeof createDb> = null!;
 
   beforeAll(async () => {
-    connection = dbConnection;
+    connection = dbConnection as ReturnType<typeof createDb>;
+    // If the suite runs but connection is missing, something is misconfigured — fail fast.
+    if (!connection) {
+      throw new Error(
+        "DB connection is null in beforeAll. Check TEST_DATABASE_URL and DB reachability."
+      );
+    }
   });
 
   beforeEach(async () => {
-    if (!connection) return;
     await truncateAuthTables(connection.db);
   });
 
   afterEach(async () => {
-    if (!connection) return;
     await truncateAuthTables(connection.db);
   });
 
@@ -74,7 +80,6 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
 
   describe("signup / signin / signout / session lifecycle", () => {
     it("signup creates user + default project + session", async () => {
-      if (!connection) return;
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -107,7 +112,6 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
     });
 
     it("signin works with valid credentials", async () => {
-      if (!connection) return;
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -139,7 +143,6 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
     });
 
     it("signin rejects invalid credentials", async () => {
-      if (!connection) return;
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -166,7 +169,6 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
     });
 
     it("/auth/me unauthorized without session", async () => {
-      if (!connection) return;
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -175,7 +177,6 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
     });
 
     it("/auth/me authorized with valid session", async () => {
-      if (!connection) return;
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -203,7 +204,6 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
     });
 
     it("/auth/me unauthorized with invalid session", async () => {
-      if (!connection) return;
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -215,7 +215,6 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
     });
 
     it("signout invalidates session", async () => {
-      if (!connection) return;
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -255,7 +254,6 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
 
   describe("admin election invariant", () => {
     it("produces exactly one admin after N concurrent signups", async () => {
-      if (!connection) return;
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -278,6 +276,7 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
         expect(res.status).toBe(200);
       }
 
+      // connection is guaranteed non-null here because beforeAll throws if it is
       const allUsers = await connection.db.select().from(users);
       expect(allUsers).toHaveLength(N);
 

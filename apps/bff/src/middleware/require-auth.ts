@@ -11,7 +11,15 @@ export function requireAuth(auth: BetterAuthApp) {
 
       c.set("authUser", session.user);
       await next();
-    } catch {
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: "auth.session_lookup_failed",
+          path: c.req.path,
+          method: c.req.method,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      );
       return c.json({ error: "auth_unavailable" }, 503);
     }
   };

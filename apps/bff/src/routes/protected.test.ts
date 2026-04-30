@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../app";
 import type { BetterAuthApp } from "../auth/better-auth";
 
@@ -75,5 +75,35 @@ describe("protected routes", () => {
     expect(response.status).toBe(503);
     const body = await response.json();
     expect(body.error).toBe("auth_unavailable");
+  });
+
+  it("logs structured error when getSession throws", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const app = createApp({
+      auth: {
+        ...buildAuth(),
+        api: {
+          async getSession() {
+            throw new Error("auth backend unavailable");
+          }
+        }
+      }
+    });
+
+    const response = await app.request("/protected/ping", {
+      headers: { cookie: "rw_session=known-token" }
+    });
+
+    expect(response.status).toBe(503);
+
+    expect(spy).toHaveBeenCalledOnce();
+    const logged = JSON.parse(spy.mock.calls[0][0] as string);
+    expect(logged.event).toBe("auth.session_lookup_failed");
+    expect(logged.path).toBe("/protected/ping");
+    expect(logged.method).toBe("GET");
+    expect(logged.error).toBe("auth backend unavailable");
+
+    spy.mockRestore();
   });
 });
