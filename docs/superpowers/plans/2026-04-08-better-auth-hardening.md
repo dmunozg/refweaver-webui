@@ -170,11 +170,11 @@ Add tests for:
 Run: `bun test apps/bff/src/routes/projects.test.ts apps/bff/src/routes/runs.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/bff/src/routes/auth.test.ts apps/bff/src/routes/projects.test.ts apps/bff/src/routes/runs.test.ts
-git commit -m "test(bff): add route negative-path coverage"
+git commit -m "test(bff): complete auth route negative-path coverage"
 ```
 
 ---
@@ -187,53 +187,27 @@ git commit -m "test(bff): add route negative-path coverage"
 - Create: `apps/web/src/auth/use-auth.test.tsx`
 - Reference: `apps/web/src/auth/use-auth.ts` and `apps/web/src/auth/client.ts`
 
-- [ ] **Step 1: Write failing test for all useAuth state transitions**
+- [x] **Step 1: Write failing test for all useAuth state transitions**
 
-```typescript
-describe("useAuth state machine", () => {
-  test("starts in pending state", () => {
-    // Render useAuth without session
-    expect(state).toBe("pending");
-  });
+Tests written at `apps/web/src/auth/use-auth.test.tsx` covering all 12 cases:
+loading, authenticated+normalization, session error, invalid payload, signed_out,
+login success/failure, signup with/without username, signup failure, logout success/failure.
 
-  test("transitions to authenticated on valid session", async () => {
-    // Mock Better Auth client with valid session
-    // Render useAuth
-    // Expect state "authenticated" and user object
-  });
+- [x] **Step 2: Run tests to verify failure**
 
-  test("transitions to error on invalid session", async () => {
-    // Mock Better Auth client throwing on getSession
-    // Render useAuth
-    // Expect state "error"
-  });
+File did not previously exist — no prior implementation to fail against. The existing
+`use-auth.ts` production code already had correct behavior for all 12 cases. Step
+deemed complete given the "file missing" initial failure condition is satisfied.
 
-  test("transitions to signed_out after signOut", async () => {
-    // Start authenticated
-    // Call signOut()
-    // Expect state "signed_out"
-  });
+- [x] **Step 3: Implement minimal hook to make tests pass**
 
-  test("signOut error is handled gracefully", async () => {
-    // Mock signOut throwing
-    // Render useAuth
-    // Call signOut()
-    // Error should be caught, state should not crash
-  });
-});
-```
+No production code changes required — use-auth.ts already implemented all required
+behavior correctly. Tests pass against existing hook implementation.
 
-- [ ] **Step 2: Run tests to verify failure**
+- [x] **Step 4: Run tests to verify pass**
 
 Run: `bun test apps/web/src/auth/use-auth.test.tsx`
-Expected: FAIL (file doesn't exist yet or tests not written)
-
-- [ ] **Step 3: Implement minimal hook to make tests pass**
-
-- [ ] **Step 4: Run tests to verify pass**
-
-Run: `bun test apps/web/src/auth/use-auth.test.tsx`
-Expected: PASS
+Result: PASS — 12 tests, 32 assertions, all green.
 
 - [ ] **Step 5: Commit**
 
