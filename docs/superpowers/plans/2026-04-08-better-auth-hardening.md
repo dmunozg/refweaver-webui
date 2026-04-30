@@ -221,20 +221,19 @@ git commit -m "test(web): recreate useAuth state machine tests"
 **Files:**
 - Modify: `apps/web/src/App.auth.test.tsx`
 
-- [ ] **Step 1: Write test for App-level auth flow**
+- [x] **Step 1: Write test for App-level auth flow**
 
-```typescript
-describe("App auth flows", () => {
-  test("unauthenticated user sees login/signup", () => {});
-  test("authenticated user sees main app", () => {});
-  test("logout redirects to login", () => {});
-});
-```
+Tests added at `apps/web/src/App.auth.test.tsx` in a new `describe("App auth flows", ...)` block:
+- `unauthenticated user sees login/signup shell` — asserts signed_out state renders "Please log in"
+- `authenticated user sees main app shell` — asserts authenticated state renders "Welcome", username, "Log out"
+- `logout redirects to login shell` — uses in-place mutable mock; after logout button click + forced re-render, asserts UI transitions from authenticated shell to "Please log in"
 
-- [ ] **Step 2: Run tests**
+`authenticatedState()` helper moved to module scope so both `describe` blocks share it.
+
+- [x] **Step 2: Run tests**
 
 Run: `bun test apps/web/src/App.auth.test.tsx`
-Expected: PASS
+Result: PASS — 8 tests, 18 assertions, all green.
 
 - [ ] **Step 3: Commit**
 
