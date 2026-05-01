@@ -7,7 +7,7 @@ export const sessions = pgTable("sessions", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   token: text("token").unique(),
-  sessionTokenHash: text("session_token_hash").notNull(),
+  sessionTokenHash: text("session_token_hash"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

@@ -52,10 +52,10 @@
       "breakpoints": true
     },
     {
-      "idx": 7,
+      "idx": 8,
       "version": "7",
-      "when": 1746057800000,
-      "tag": "0007_sessions_id_text",
+      "when": 1746057900000,
+      "tag": "0008_session_token_hash_nullable",
       "breakpoints": true
     }
   ]
