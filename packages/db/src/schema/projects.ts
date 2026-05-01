@@ -4,7 +4,7 @@ import { users } from "./users";
 export const projects = pgTable("projects", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
-  ownerUserId: uuid("owner_user_id")
+  ownerUserId: text("owner_user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   teamId: uuid("team_id"),
