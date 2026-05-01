@@ -6,8 +6,23 @@ including headers, payload validation, error handling, and async run lifecycle.
 ## BFF Domain API (WebUI)
 
 The WebUI BFF exposes user-scoped project and run lifecycle routes. These routes
-are authenticated with the WebUI session cookie and do not require browser
+are authenticated with Better Auth session cookies and do not require browser
 clients to send `X-User-Id` directly.
+
+### Auth (Better Auth)
+
+Auth endpoints are proxied at `/auth/*` to Better Auth.
+
+- `POST /auth/sign-up/email` creates a user account and establishes a session.
+- `POST /auth/sign-in/email` signs in and establishes a session.
+- `POST /auth/sign-out` invalidates the current session.
+- `GET /auth/get-session` returns the current session state.
+
+Notes:
+
+- Session state is cookie-based (`Set-Cookie` on successful sign-up/sign-in).
+- Unauthenticated `GET /auth/get-session` responses may be `200` with a `null`
+  body, depending on Better Auth response shape.
 
 ### Projects
 
@@ -60,8 +75,11 @@ uvicorn refweaver.api.main:app --reload
 ### Header rules
 
 - `GET /health` does **not** require auth headers.
-- All other endpoints require `X-User-Id`.
-- `X-API-Key` is required on protected endpoints only when
+- Core RefWeaver API endpoints (for example `/analyze`, `/jobs/{job_id}`,
+  `/search`, `/enrich`, `/report`, `/runs/{run_id}`) require `X-User-Id`.
+- BFF domain routes (`/projects/*`, `/auth/*`) use Better Auth session cookies
+  instead of `X-User-Id`.
+- `X-API-Key` is required on protected core API endpoints only when
   `REFWEAVER_API_KEY` is configured on the server.
 
 Protected endpoints are:
