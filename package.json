@@ -9,6 +9,7 @@
     "test": "bun test"
   },
   "devDependencies": {
+    "bun-types": "^1.3.13",
     "typescript": "^5.8.2",
     "vitest": "^3.0.8"
   }
