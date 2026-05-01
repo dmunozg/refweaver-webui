@@ -168,15 +168,17 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       expect(res.status).toBe(401);
     });
 
-    it("/auth/me unauthorized without session", async () => {
+    it("/auth/get-session returns null user without session cookie", async () => {
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
-      const res = await app.request("/auth/me");
-      expect(res.status).toBe(401);
+      const res = await app.request("/auth/get-session");
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.user).toBeNull();
     });
 
-    it("/auth/me authorized with valid session", async () => {
+    it("/auth/get-session returns user with valid session", async () => {
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
@@ -194,24 +196,27 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       const setCookie = signupRes.headers.get("set-cookie") ?? "";
       const sessionCookie = setCookie.split(",").find((c) => c.includes("better-auth.session_token")) ?? "";
 
-      const meRes = await app.request("/auth/me", {
+      const sessionRes = await app.request("/auth/get-session", {
         headers: { cookie: sessionCookie.trim() }
       });
 
-      expect(meRes.status).toBe(200);
-      const meBody = await meRes.json();
-      expect(meBody.user.email).toBe("dave@example.com");
+      expect(sessionRes.status).toBe(200);
+      const body = await sessionRes.json();
+      expect(body.user).not.toBeNull();
+      expect(body.user.email).toBe("dave@example.com");
     });
 
-    it("/auth/me unauthorized with invalid session", async () => {
+    it("/auth/get-session returns null user with invalid session", async () => {
       const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
       const app = createApp({ auth });
 
-      const res = await app.request("/auth/me", {
+      const res = await app.request("/auth/get-session", {
         headers: { cookie: "better-auth.session_token=does-not-exist" }
       });
 
-      expect(res.status).toBe(401);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.user).toBeNull();
     });
 
     it("signout invalidates session", async () => {
@@ -244,11 +249,13 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       const clearedSetCookie = signoutRes.headers.get("set-cookie") ?? "";
       expect(clearedSetCookie).toContain("better-auth.session_token=");
 
-      // /auth/me should now be unauthorized
-      const meRes = await app.request("/auth/me", {
+      // /auth/get-session should now return null user after signout
+      const sessionRes = await app.request("/auth/get-session", {
         headers: { cookie: sessionCookie.trim() }
       });
-      expect(meRes.status).toBe(401);
+      expect(sessionRes.status).toBe(200);
+      const body = await sessionRes.json();
+      expect(body.user).toBeNull();
     });
   });
 
