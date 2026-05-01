@@ -43,6 +43,13 @@
       "when": 1746057600000,
       "tag": "0005_auth_user_id_text",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1746057700000,
+      "tag": "0006_accounts_id_text",
+      "breakpoints": true
     }
   ]
 }
