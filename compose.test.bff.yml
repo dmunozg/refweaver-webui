@@ -13,7 +13,9 @@ services:
       - postgres_test_data:/var/lib/postgresql/data
 
   bff-tests:
-    image: docker.io/oven/bun:1.3.10
+    build:
+      context: .
+      dockerfile: docker/bff-tests.Dockerfile
     working_dir: /workspace
     command:
       [

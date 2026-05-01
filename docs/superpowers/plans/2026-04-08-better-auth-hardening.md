@@ -209,7 +209,7 @@ behavior correctly. Tests pass against existing hook implementation.
 Run: `bun test apps/web/src/auth/use-auth.test.tsx`
 Result: PASS — 12 tests, 32 assertions, all green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/web/src/auth/use-auth.test.tsx
@@ -235,7 +235,7 @@ Tests added at `apps/web/src/App.auth.test.tsx` in a new `describe("App auth flo
 Run: `bun test apps/web/src/App.auth.test.tsx`
 Result: PASS — 8 tests, 18 assertions, all green.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/web/src/App.auth.test.tsx
@@ -368,12 +368,12 @@ environment:
   BETTER_AUTH_URL: http://bff-tests:3001  # must match the service name in compose network
 ```
 
-- [ ] **Step 3: Run compose BFF tests to verify**
+- [x] **Step 3: Run compose BFF tests to verify**
 
-Run: `podman compose -f compose.yml -f compose.test.bff.yml up --abort-on-container-exit --exit-code-from bff-tests bff-tests`
-Expected: PASS
+Run: `docker compose -f compose.yml -f compose.test.bff.yml up --abort-on-container-exit --exit-code-from bff-tests bff-tests`
+Expected: PASS (no `psql: command not found`; DB bootstrap runs successfully)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add compose.test.bff.yml
