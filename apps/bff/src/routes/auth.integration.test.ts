@@ -72,6 +72,64 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
     await truncateAuthTables(connection.db);
   });
 
+  // -------------------------------------------------------------------------
+  // Local test helpers (file-local, small)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Safely parses the JSON body of a /auth/get-session response.
+   * Better Auth may return a literal `null` body for unauthenticated requests,
+   * which would cause res.json() to throw. This helper handles that gracefully.
+   */
+  async function getSessionBody(
+    res: Response
+  ): Promise<{ user: unknown } | null> {
+    try {
+      const body = await res.json();
+      // Literal null (not {"user": null}) means no JSON body at all
+      if (body === null) return null;
+      return body as { user: unknown };
+    } catch {
+      // JSON parse error or empty body → treat as unauthenticated
+      return null;
+    }
+  }
+
+  /**
+   * Extracts the better-auth.session_token cookie value from a set-cookie header.
+   * Returns empty string if not found.
+   */
+  function parseSessionCookie(setCookie: string): string {
+    return (
+      setCookie
+        .split(",")
+        .find((c) => c.includes("better-auth.session_token"))
+        ?.split(";")[0]
+        ?.trim() ?? ""
+    );
+  }
+
+  /**
+   * Verifies that a newly-established session is authenticated as the expected user.
+   * Sends the session cookie to /auth/get-session and asserts the returned user.
+   * Used after signup / signin when the response JSON may not contain body.session.
+   */
+  async function expectAuthenticatedUser(
+    app: Awaited<ReturnType<typeof createApp>>,
+    sessionCookie: string,
+    expectedEmail: string
+  ): Promise<void> {
+    const sessionRes = await app.request("/auth/get-session", {
+      headers: { cookie: sessionCookie }
+    });
+    expect(sessionRes.status).toBe(200);
+    const sessionBody = await getSessionBody(sessionRes);
+    expect(sessionBody).not.toBeNull();
+    expect((sessionBody as { user: unknown }).user).not.toBeNull();
+    const user = (sessionBody as { user: { email: string } }).user;
+    expect(user.email).toBe(expectedEmail);
+  }
+
   const NEW_AUTH_ENV = {
     BETTER_AUTH_SECRET: "test-secret-for-integration-tests-only",
     BETTER_AUTH_URL: "http://localhost:3001",
@@ -94,19 +152,25 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body.user).toBeDefined();
-      expect(body.session).toBeDefined();
-      expect(body.user.email).toBe("alice@example.com");
 
-      // User has projectId
+      // User must be created
       const [dbUser] = await connection.db
         .select()
         .from(users)
         .where(eq(users.email, "alice@example.com"));
+      expect(dbUser).toBeDefined();
+      expect(dbUser.email).toBe("alice@example.com");
       expect(dbUser.projectId).not.toBeNull();
 
-      // Session created
+      // Session established via cookie (Better Auth may not return body.session)
+      const setCookie = res.headers.get("set-cookie") ?? "";
+      const sessionCookie = parseSessionCookie(setCookie);
+      expect(sessionCookie).not.toBe("");
+
+      // Verify session is authenticated via /auth/get-session
+      await expectAuthenticatedUser(app, sessionCookie, "alice@example.com");
+
+      // Session row exists in DB
       const [dbSession] = await connection.db.select().from(sessions);
       expect(dbSession).toBeDefined();
     });
@@ -137,9 +201,14 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body.user).toBeDefined();
-      expect(body.session).toBeDefined();
+
+      // Session established via cookie (Better Auth may not return body.session)
+      const setCookie = res.headers.get("set-cookie") ?? "";
+      const sessionCookie = parseSessionCookie(setCookie);
+      expect(sessionCookie).not.toBe("");
+
+      // Verify session is authenticated via /auth/get-session
+      await expectAuthenticatedUser(app, sessionCookie, "bob@example.com");
     });
 
     it("signin rejects invalid credentials", async () => {
@@ -174,8 +243,9 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
 
       const res = await app.request("/auth/get-session");
       expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body.user).toBeNull();
+      const body = await getSessionBody(res);
+      // Better Auth returns literal null for unauthenticated requests
+      expect(body).toBeNull();
     });
 
     it("/auth/get-session returns user with valid session", async () => {
@@ -215,8 +285,9 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body.user).toBeNull();
+      const body = await getSessionBody(res);
+      // Better Auth returns literal null for invalid session
+      expect(body).toBeNull();
     });
 
     it("signout invalidates session", async () => {
@@ -254,8 +325,9 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
         headers: { cookie: sessionCookie.trim() }
       });
       expect(sessionRes.status).toBe(200);
-      const body = await sessionRes.json();
-      expect(body.user).toBeNull();
+      const body = await getSessionBody(sessionRes);
+      // Session cleared → unauthenticated (literal null)
+      expect(body).toBeNull();
     });
   });
 
