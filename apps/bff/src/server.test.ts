@@ -66,6 +66,15 @@ describe("health route", () => {
     expect(res.headers.get("access-control-allow-methods")).toContain("GET");
   });
 
+  it("does not add allow-origin header when request has no origin", async () => {
+    const app = createApp({ auth: buildAuth(), allowedOrigins: ["http://vesuvio3:5173"] });
+
+    const res = await app.request("/health");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
   it("does not add allow-origin header to preflight for disallowed origins", async () => {
     const app = createApp({ auth: buildAuth(), allowedOrigins: ["http://vesuvio3:5173"] });
 
