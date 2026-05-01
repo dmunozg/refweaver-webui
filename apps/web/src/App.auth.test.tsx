@@ -49,7 +49,7 @@ function authenticatedUser() {
 }
 
 afterEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("App auth flows", () => {
@@ -216,5 +216,7 @@ describe("App auth shell", () => {
       resolveLogout?.();
       await Promise.resolve();
     });
+
+    expect(renderer!.root.findByType("button").props.disabled).toBe(false);
   });
 });

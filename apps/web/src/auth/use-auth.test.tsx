@@ -62,7 +62,7 @@ function setSession(session: SessionState) {
 // ---------------------------------------------------------------------------
 afterEach(() => {
   capture.current = null;
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("useAuth state machine", () => {
