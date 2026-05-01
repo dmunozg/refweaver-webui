@@ -1,23 +1,72 @@
 import { describe, expect, it } from "vitest";
 import { accounts, analysisRuns, projects, sessions, users, verifications } from "./index";
 
+// Drizzle stores table name via Symbol(drizzle:Name)
+const drizzleNameSym = Symbol.for("drizzle:Name");
+
+// Helper to access Drizzle inline foreign keys from a table
+function getInlineForeignKeys(
+  table: Record<string, unknown>
+): Array<{
+  reference: () => {
+    foreignTable: Record<string, unknown>;
+    foreignColumns: Array<{ name: string }>;
+  };
+}> {
+  const sym = Symbol.for("drizzle:PgInlineForeignKeys");
+  return (table[sym] as Array<{ reference: () => { foreignTable: Record<string, unknown>; foreignColumns: Array<{ name: string }> } }>) ?? [];
+}
+
+// Helper: checks if table has an inline FK to targetTable.targetColumn
+function hasInlineFkTo(
+  table: Record<string, unknown>,
+  targetTableName: string,
+  targetColumnName: string
+): boolean {
+  const ifks = getInlineForeignKeys(table);
+  for (const ifk of ifks) {
+    const ref = ifk.reference();
+    const ft = ref?.foreignTable;
+    if (ft && ft[drizzleNameSym] === targetTableName && ref.foreignColumns.some((c) => c.name === targetColumnName)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 describe("schema", () => {
+  describe("auth ID type invariants (Better Auth uses text-backed IDs)", () => {
+    it("users.id is text-backed", () => {
+      expect(users.id.dataType).toBe("string");
+    });
+
+    it("accounts.id is text-backed", () => {
+      expect(accounts.id.dataType).toBe("string");
+    });
+
+    it("sessions.id is text-backed", () => {
+      expect(sessions.id.dataType).toBe("string");
+    });
+  });
+
+  describe("FK invariants", () => {
+    it("users.projectId has FK reference to projects.id", () => {
+      expect(hasInlineFkTo(users as unknown as Record<string, unknown>, "projects", "id")).toBe(true);
+    });
+  });
+
+  describe("session compatibility invariant", () => {
+    it("sessions.sessionTokenHash is nullable (not required)", () => {
+      expect(sessions.sessionTokenHash.notNull).toBe(false);
+    });
+  });
+
   it("includes Better Auth compatible user fields", () => {
     expect(users.emailVerified).toBeDefined();
     expect(users.image).toBeDefined();
     expect(users.adminRole).toBeDefined();
     expect(users.projectId).toBeDefined();
     expect(users.username).toBeDefined();
-  });
-
-  it("users.projectId has FK reference to projects.id", () => {
-    // FK declared via .references(() => projects.id) on projectId field
-    // Drizzle stores reference metadata on the column builder at _builder.metadata.references
-    expect(users.projectId).toBeDefined();
-    // Stable public API: verify column is properly defined as a UUID referencing projects
-    // This assertion uses Drizzle's stable column builder API to confirm FK intent
-    const col = users.projectId;
-    expect(col).not.toBeNull();
   });
 
   it("includes Better Auth compatible session fields", () => {
