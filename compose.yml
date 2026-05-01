@@ -28,7 +28,6 @@ services:
     environment:
       PORT: ${BFF_PORT:-3001}
       DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@db:5432/refweaver_webui}
-      SESSION_SECRET: ${SESSION_SECRET:-replace-with-random-secret}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-replace-with-random-secret}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3001}
       REFWEAVER_API_BASE_URL: ${REFWEAVER_API_BASE_URL:?REFWEAVER_API_BASE_URL is required}

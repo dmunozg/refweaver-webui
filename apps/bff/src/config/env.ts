@@ -1,6 +1,5 @@
 export type ParsedEnv = {
   DATABASE_URL: string;
-  SESSION_SECRET: string;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
   REFWEAVER_API_BASE_URL: string;
@@ -37,7 +36,6 @@ function parseAllowedOrigins(input: string): string[] {
 
 export function parseEnv(input: Record<string, string | undefined>): ParsedEnv {
   const databaseUrl = input.DATABASE_URL;
-  const sessionSecret = input.SESSION_SECRET;
   const betterAuthSecret = input.BETTER_AUTH_SECRET;
   const betterAuthUrl = input.BETTER_AUTH_URL;
   const refweaverApiBaseUrl = input.REFWEAVER_API_BASE_URL;
@@ -46,10 +44,6 @@ export function parseEnv(input: Record<string, string | undefined>): ParsedEnv {
 
   if (!databaseUrl) {
     throw new Error("Missing DATABASE_URL");
-  }
-
-  if (!sessionSecret) {
-    throw new Error("Missing SESSION_SECRET");
   }
 
   if (!betterAuthSecret) {
@@ -66,7 +60,6 @@ export function parseEnv(input: Record<string, string | undefined>): ParsedEnv {
 
   return {
     DATABASE_URL: databaseUrl,
-    SESSION_SECRET: sessionSecret,
     BETTER_AUTH_SECRET: betterAuthSecret,
     BETTER_AUTH_URL: betterAuthUrl,
     REFWEAVER_API_BASE_URL: refweaverApiBaseUrl,

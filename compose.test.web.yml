@@ -26,7 +26,6 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgres://postgres:postgres@db:5432/refweaver_webui_test
-      SESSION_SECRET: replace-with-random-secret
       BETTER_AUTH_SECRET: replace-with-random-secret
       BETTER_AUTH_URL: http://bff-test:3001
       REFWEAVER_API_BASE_URL: http://refweaver.invalid
