@@ -1,29 +1,26 @@
 import type { Context, Next } from "hono";
-import {
-  getSessionTokenFromCookieHeader,
-  hashSessionToken,
-  isSessionExpired
-} from "../auth/session";
-import type { AuthStore } from "../auth/store";
+import type { BetterAuthApp } from "../auth/better-auth";
 
-export function requireAuth(store: AuthStore) {
+export function requireAuth(auth: BetterAuthApp) {
   return async (c: Context, next: Next) => {
-    const token = getSessionTokenFromCookieHeader(c.req.header("cookie"));
-    if (!token) {
-      return c.json({ error: "unauthorized" }, 401);
-    }
+    try {
+      const session = await auth.api.getSession({ headers: c.req.raw.headers });
+      if (!session) {
+        return c.json({ error: "unauthorized" }, 401);
+      }
 
-    const session = await store.findSessionByTokenHash(hashSessionToken(token));
-    if (!session || typeof session.userId !== "string" || isSessionExpired(session.expiresAt)) {
-      return c.json({ error: "unauthorized" }, 401);
+      c.set("authUser", session.user);
+      await next();
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: "auth.session_lookup_failed",
+          path: c.req.path,
+          method: c.req.method,
+          error: error instanceof Error ? error.message : String(error)
+        })
+      );
+      return c.json({ error: "auth_unavailable" }, 503);
     }
-
-    const user = await store.findUserById(session.userId);
-    if (!user) {
-      return c.json({ error: "unauthorized" }, 401);
-    }
-
-    c.set("authUser", user);
-    await next();
   };
 }

@@ -8,13 +8,14 @@
 ## Environment
 
 1. Copy `.env.example` to `.env`.
-2. Set `DATABASE_URL`, `SESSION_SECRET`, and `REFWEAVER_API_BASE_URL`.
+2. Set `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, and `REFWEAVER_API_BASE_URL`.
 
 ## Podman Compose (Recommended)
 
 1. Copy `.env.example` to `.env`.
 2. Set at minimum:
-   - `SESSION_SECRET`
+   - `BETTER_AUTH_SECRET`
+   - `BETTER_AUTH_URL`
    - `REFWEAVER_API_BASE_URL` (required)
 
 Optional host exposure controls:
@@ -85,6 +86,23 @@ Run Web app:
 bun run --filter @refweaver/web dev
 ```
 
+## Migration Safety
+
+### Irreversible Migrations
+
+The following migrations perform `DROP COLUMN` and are **non-reversible without a full DB restore**:
+
+| Migration | Columns Dropped | Risk |
+|----------|-----------------|------|
+| `0003_drop_legacy_auth_columns.sql` | `password_hash`, `team_id` | Data loss. Ensure all apps use Better Auth before applying. |
+
+**Before applying any migration:**
+- Verify all application instances are running the newer codebase
+- Ensure a verified DB snapshot or backup exists
+- Test the migration on a staging environment first
+
+**Rollback path:** Full DB snapshot restore required. No `ALTER TABLE ADD COLUMN` can undo a `DROP COLUMN`.
+
 ## Tests
 
 Run all tests:
@@ -92,3 +110,26 @@ Run all tests:
 ```bash
 bun run test
 ```
+
+## Compose Test Runs
+
+Run backend Vitest with a disposable Postgres database:
+
+```bash
+podman compose -f compose.yml -f compose.test.bff.yml up --abort-on-container-exit --exit-code-from bff-tests bff-tests
+```
+
+Run frontend Vitest with a disposable Postgres database and a live BFF:
+
+```bash
+podman compose -f compose.yml -f compose.test.web.yml up --abort-on-container-exit --exit-code-from web-tests web-tests
+```
+
+Tear down and remove the test database volume after a run:
+
+```bash
+podman compose -f compose.yml -f compose.test.bff.yml down -v
+podman compose -f compose.yml -f compose.test.web.yml down -v
+```
+
+These compose test flows run Vitest only. E2E is intentionally excluded.

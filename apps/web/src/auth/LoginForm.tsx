@@ -1,13 +1,13 @@
 import { FormEvent, useState } from "react";
 
 type LoginFormProps = {
-  onLogin: (identifier: string, password: string) => Promise<void>;
+  onLogin: (email: string, password: string) => Promise<void>;
   isSubmitting: boolean;
   error: string | null;
 };
 
 export function LoginForm({ onLogin, isSubmitting, error }: LoginFormProps) {
-  const [identifier, setIdentifier] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -15,18 +15,18 @@ export function LoginForm({ onLogin, isSubmitting, error }: LoginFormProps) {
     if (isSubmitting) {
       return;
     }
-    await onLogin(identifier, password);
+    await onLogin(email, password);
   }
 
   return (
     <form onSubmit={handleSubmit}>
       <label>
-        Username or email
+        Email
         <input
-          value={identifier}
-          onChange={(event) => setIdentifier(event.target.value)}
-          name="identifier"
-          autoComplete="username"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          name="email"
+          autoComplete="email"
           required
           disabled={isSubmitting}
         />

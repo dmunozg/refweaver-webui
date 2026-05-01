@@ -1,0 +1,47 @@
+services:
+  db:
+    environment:
+      POSTGRES_DB: refweaver_webui_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d refweaver_webui_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+
+  bff-tests:
+    build:
+      context: .
+      dockerfile: docker/bff-tests.Dockerfile
+    working_dir: /workspace
+    command:
+      [
+        "sh",
+        "-lc",
+        "bun install && /workspace/packages/db/scripts/bootstrap.sh && bun run --filter @refweaver/bff test"
+      ]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@db:5432/refweaver_webui_test
+      TEST_DATABASE_URL: postgres://postgres:postgres@db:5432/refweaver_webui_test
+      BETTER_AUTH_SECRET: replace-with-random-secret
+      BETTER_AUTH_URL: http://bff-tests:3001
+      REFWEAVER_API_BASE_URL: http://refweaver.invalid
+      REFWEAVER_API_KEY: ""
+      BFF_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    volumes:
+      - ./:/workspace:Z
+      - bun_node_modules_bff_test:/workspace/node_modules
+      - bff_node_modules_test:/workspace/apps/bff/node_modules
+      - db_node_modules_test:/workspace/packages/db/node_modules
+
+volumes:
+  postgres_test_data:
+  bun_node_modules_bff_test:
+  bff_node_modules_test:
+  db_node_modules_test:

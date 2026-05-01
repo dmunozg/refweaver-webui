@@ -15,6 +15,55 @@
       "when": 1773865757525,
       "tag": "0001_little_daimon_hellstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1774490000000,
+      "tag": "0002_better_auth_cutover",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774491000000,
+      "tag": "0003_drop_legacy_auth_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774492000000,
+      "tag": "0004_single_admin_invariant",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1746057600000,
+      "tag": "0005_auth_user_id_text",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1746057700000,
+      "tag": "0006_accounts_id_text",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1746057800000,
+      "tag": "0007_sessions_id_text",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1746057900000,
+      "tag": "0008_session_token_hash_nullable",
+      "breakpoints": true
     }
   ]
 }

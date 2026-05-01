@@ -14,7 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   bff:
-    image: docker.io/oven/bun:1.2.8
+    image: docker.io/oven/bun:1.3.10
     working_dir: /workspace
     command:
       [
@@ -28,7 +28,8 @@ services:
     environment:
       PORT: ${BFF_PORT:-3001}
       DATABASE_URL: ${DATABASE_URL:-postgres://postgres:postgres@db:5432/refweaver_webui}
-      SESSION_SECRET: ${SESSION_SECRET:-replace-with-random-secret}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-replace-with-random-secret}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3001}
       REFWEAVER_API_BASE_URL: ${REFWEAVER_API_BASE_URL:?REFWEAVER_API_BASE_URL is required}
       REFWEAVER_API_KEY: ${REFWEAVER_API_KEY:-}
       BFF_ALLOWED_ORIGINS: ${BFF_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
@@ -41,7 +42,7 @@ services:
       - db_node_modules:/workspace/packages/db/node_modules
 
   web:
-    image: docker.io/oven/bun:1.2.8
+    image: docker.io/oven/bun:1.3.10
     working_dir: /workspace
     env_file:
       - .env

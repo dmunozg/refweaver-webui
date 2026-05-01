@@ -1,70 +1,31 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
+import type { BetterAuthApp } from "./auth/better-auth";
+
+function buildAuth(): BetterAuthApp {
+  return {
+    async handler() {
+      return new Response(null, { status: 204 });
+    },
+    api: {
+      async getSession() {
+        return {
+          user: { id: "user-1", username: "ada", email: "ada@example.com", name: "Ada", adminRole: "user", projectId: null }
+        };
+      }
+    }
+  };
+}
 
 describe("health route", () => {
   it("returns ok", async () => {
-    const app = createApp({
-      signupStore: {
-        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-          return fn(this);
-        },
-        async createUser() {
-          return { id: "user-1" };
-        },
-        async createProject() {
-          return { id: "project-1" };
-        },
-        async createSession() {
-          return { id: "session-1" };
-        },
-        async findUserByIdentifier() {
-          return null;
-        },
-        async findUserById() {
-          return null;
-        },
-        async findSessionByTokenHash() {
-          return null;
-        },
-        async deleteSessionByTokenHash() {
-          return;
-        }
-      }
-    });
+    const app = createApp({ auth: buildAuth() });
     const res = await app.request("/health");
     expect(res.status).toBe(200);
   });
 
   it("adds CORS headers for allowed origins", async () => {
-    const app = createApp({
-      signupStore: {
-        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-          return fn(this);
-        },
-        async createUser() {
-          return { id: "user-1" };
-        },
-        async createProject() {
-          return { id: "project-1" };
-        },
-        async createSession() {
-          return { id: "session-1" };
-        },
-        async findUserByIdentifier() {
-          return null;
-        },
-        async findUserById() {
-          return null;
-        },
-        async findSessionByTokenHash() {
-          return null;
-        },
-        async deleteSessionByTokenHash() {
-          return;
-        }
-      },
-      allowedOrigins: ["http://vesuvio3:5173"]
-    });
+    const app = createApp({ auth: buildAuth(), allowedOrigins: ["http://vesuvio3:5173"] });
 
     const res = await app.request("/health", {
       headers: {
@@ -77,35 +38,7 @@ describe("health route", () => {
   });
 
   it("does not allow disallowed origins", async () => {
-    const app = createApp({
-      signupStore: {
-        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-          return fn(this);
-        },
-        async createUser() {
-          return { id: "user-1" };
-        },
-        async createProject() {
-          return { id: "project-1" };
-        },
-        async createSession() {
-          return { id: "session-1" };
-        },
-        async findUserByIdentifier() {
-          return null;
-        },
-        async findUserById() {
-          return null;
-        },
-        async findSessionByTokenHash() {
-          return null;
-        },
-        async deleteSessionByTokenHash() {
-          return;
-        }
-      },
-      allowedOrigins: ["http://vesuvio3:5173"]
-    });
+    const app = createApp({ auth: buildAuth(), allowedOrigins: ["http://vesuvio3:5173"] });
 
     const res = await app.request("/health", {
       headers: {
@@ -117,35 +50,7 @@ describe("health route", () => {
   });
 
   it("handles preflight requests for allowed origins", async () => {
-    const app = createApp({
-      signupStore: {
-        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-          return fn(this);
-        },
-        async createUser() {
-          return { id: "user-1" };
-        },
-        async createProject() {
-          return { id: "project-1" };
-        },
-        async createSession() {
-          return { id: "session-1" };
-        },
-        async findUserByIdentifier() {
-          return null;
-        },
-        async findUserById() {
-          return null;
-        },
-        async findSessionByTokenHash() {
-          return null;
-        },
-        async deleteSessionByTokenHash() {
-          return;
-        }
-      },
-      allowedOrigins: ["http://vesuvio3:5173"]
-    });
+    const app = createApp({ auth: buildAuth(), allowedOrigins: ["http://vesuvio3:5173"] });
 
     const res = await app.request("/auth/me", {
       method: "OPTIONS",
@@ -161,36 +66,17 @@ describe("health route", () => {
     expect(res.headers.get("access-control-allow-methods")).toContain("GET");
   });
 
+  it("does not add allow-origin header when request has no origin", async () => {
+    const app = createApp({ auth: buildAuth(), allowedOrigins: ["http://vesuvio3:5173"] });
+
+    const res = await app.request("/health");
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
   it("does not add allow-origin header to preflight for disallowed origins", async () => {
-    const app = createApp({
-      signupStore: {
-        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-          return fn(this);
-        },
-        async createUser() {
-          return { id: "user-1" };
-        },
-        async createProject() {
-          return { id: "project-1" };
-        },
-        async createSession() {
-          return { id: "session-1" };
-        },
-        async findUserByIdentifier() {
-          return null;
-        },
-        async findUserById() {
-          return null;
-        },
-        async findSessionByTokenHash() {
-          return null;
-        },
-        async deleteSessionByTokenHash() {
-          return;
-        }
-      },
-      allowedOrigins: ["http://vesuvio3:5173"]
-    });
+    const app = createApp({ auth: buildAuth(), allowedOrigins: ["http://vesuvio3:5173"] });
 
     const res = await app.request("/auth/me", {
       method: "OPTIONS",

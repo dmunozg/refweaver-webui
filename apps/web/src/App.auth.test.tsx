@@ -3,42 +3,69 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("./auth/use-auth", () => ({
-  useAuth: vi.fn()
+vi.mock("./auth/client", () => ({
+  authClient: {
+    useSession: vi.fn(),
+    signIn: { email: vi.fn() },
+    signUp: { email: vi.fn() },
+    signOut: vi.fn()
+  }
 }));
 
-import { useAuth } from "./auth/use-auth";
+import { authClient } from "./auth/client";
 import { App } from "./App";
 import { LoginForm } from "./auth/LoginForm";
 
-const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
+type SessionState = {
+  isPending: boolean;
+  data: { user: Record<string, unknown> } | null;
+  error: Error | null;
+  refetch: () => Promise<void>;
+};
+
+function makeSession(overrides: Partial<SessionState>): SessionState {
+  return {
+    isPending: false,
+    data: null,
+    error: null,
+    refetch: async () => {},
+    ...overrides
+  };
+}
+
+function setSession(session: SessionState) {
+  (authClient.useSession as ReturnType<typeof vi.fn>).mockReturnValue(session);
+}
+
+function authenticatedUser() {
+  return {
+    id: "user-1",
+    username: "ada",
+    email: "ada@example.com",
+    name: "Ada",
+    adminRole: "admin",
+    projectId: "project-1"
+  };
+}
 
 afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe("App auth shell", () => {
-  function authenticatedState() {
-    return {
-      status: "authenticated" as const,
-      user: {
-        id: "user-1",
-        username: "ada",
-        email: "ada@example.com",
-        name: "Ada",
-        teamId: null
-      },
-      error: null
-    };
-  }
+describe("App auth flows", () => {
+  it("unauthenticated user sees login/signup shell", () => {
+    setSession(makeSession({ data: null }));
 
-  it("renders authenticated shell when user is authenticated", () => {
-    mockedUseAuth.mockReturnValue({
-      state: authenticatedState(),
-      refresh: async () => {},
-      login: async () => {},
-      logout: async () => {}
+    let renderer: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<App />);
     });
+    const text = JSON.stringify(renderer!.toJSON());
+    expect(text).toContain("Please log in");
+  });
+
+  it("authenticated user sees main app shell", () => {
+    setSession(makeSession({ data: { user: authenticatedUser() } }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     act(() => {
@@ -47,21 +74,58 @@ describe("App auth shell", () => {
     const text = JSON.stringify(renderer!.toJSON());
 
     expect(text).toContain("Welcome");
-    expect(text).toContain("Ada");
+    expect(text).toContain("ada");
+    expect(text).toContain("Log out");
+  });
+
+  it("logout redirects to login shell", async () => {
+    const session = makeSession({ data: { user: authenticatedUser() } });
+    (authClient.signOut as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });
+    session.refetch = vi.fn(async () => {
+      session.data = null;
+    });
+    setSession(session);
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const textBefore = JSON.stringify(renderer!.toJSON());
+    expect(textBefore).toContain("Welcome");
+
+    const logoutButton = renderer!.root.findByType("button");
+    await act(async () => {
+      await logoutButton.props.onClick();
+    });
+
+    await act(async () => {
+      renderer!.update(<App />);
+    });
+
+    const textAfter = JSON.stringify(renderer!.toJSON());
+    expect(textAfter).toContain("Please log in");
+    expect(textAfter).not.toContain("Welcome");
+  });
+});
+
+describe("App auth shell", () => {
+  it("renders authenticated shell when user is authenticated", () => {
+    setSession(makeSession({ data: { user: authenticatedUser() } }));
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<App />);
+    });
+    const text = JSON.stringify(renderer!.toJSON());
+
+    expect(text).toContain("Welcome");
+    expect(text).toContain("ada");
     expect(text).toContain("Log out");
   });
 
   it("renders signed-out shell when session is missing", () => {
-    mockedUseAuth.mockReturnValue({
-      state: {
-        status: "signed_out",
-        user: null,
-        error: null
-      },
-      refresh: async () => {},
-      login: async () => {},
-      logout: async () => {}
-    });
+    setSession(makeSession({ data: null }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     act(() => {
@@ -73,23 +137,14 @@ describe("App auth shell", () => {
 
   it("prevents duplicate login submissions while request is in flight", async () => {
     let resolveLogin: (() => void) | undefined;
-    const login = vi.fn(
+    (authClient.signIn.email as ReturnType<typeof vi.fn>).mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
-          resolveLogin = resolve;
+        new Promise((resolve) => {
+          resolveLogin = () => resolve({ error: null });
         })
     );
-
-    mockedUseAuth.mockReturnValue({
-      state: {
-        status: "signed_out",
-        user: null,
-        error: null
-      },
-      refresh: async () => {},
-      login,
-      logout: async () => {}
-    });
+    const refetch = vi.fn(async () => {});
+    setSession(makeSession({ data: null, refetch }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -103,7 +158,7 @@ describe("App auth shell", () => {
       void loginForm.props.onLogin("ada", "safe-pass");
     });
 
-    expect(login).toHaveBeenCalledTimes(1);
+    expect(authClient.signIn.email).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       resolveLogin?.();
@@ -112,16 +167,10 @@ describe("App auth shell", () => {
   });
 
   it("shows visible error when logout fails", async () => {
-    const logout = vi.fn(async () => {
-      throw new Error("server");
+    (authClient.signOut as ReturnType<typeof vi.fn>).mockResolvedValue({
+      error: new Error("server")
     });
-
-    mockedUseAuth.mockReturnValue({
-      state: authenticatedState(),
-      refresh: async () => {},
-      login: async () => {},
-      logout
-    });
+    setSession(makeSession({ data: { user: authenticatedUser() } }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -133,26 +182,20 @@ describe("App auth shell", () => {
       await logoutButton.props.onClick();
     });
 
-    expect(logout).toHaveBeenCalledTimes(1);
+    expect(authClient.signOut).toHaveBeenCalledTimes(1);
     const text = JSON.stringify(renderer!.toJSON());
     expect(text).toContain("Could not log out. Please try again.");
   });
 
   it("prevents duplicate logout submissions while request is in flight", async () => {
     let resolveLogout: (() => void) | undefined;
-    const logout = vi.fn(
+    (authClient.signOut as ReturnType<typeof vi.fn>).mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
-          resolveLogout = resolve;
+        new Promise((resolve) => {
+          resolveLogout = () => resolve({ error: null });
         })
     );
-
-    mockedUseAuth.mockReturnValue({
-      state: authenticatedState(),
-      refresh: async () => {},
-      login: async () => {},
-      logout
-    });
+    setSession(makeSession({ data: { user: authenticatedUser() } }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -166,11 +209,12 @@ describe("App auth shell", () => {
       logoutButton.props.onClick();
     });
 
-    expect(logout).toHaveBeenCalledTimes(1);
+    expect(authClient.signOut).toHaveBeenCalledTimes(1);
     expect(renderer!.root.findByType("button").props.disabled).toBe(true);
 
     await act(async () => {
       resolveLogout?.();
+      await Promise.resolve();
     });
 
     expect(renderer!.root.findByType("button").props.disabled).toBe(false);

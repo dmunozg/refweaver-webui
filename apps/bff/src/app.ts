@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import type { AuthStore } from "./auth/store";
+import type { BetterAuthApp } from "./auth/better-auth";
 import { requireAuth } from "./middleware/require-auth";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerHealthRoute } from "./routes/health";
@@ -9,15 +9,20 @@ import { registerRunRoutes } from "./routes/runs";
 import type { createProjectService } from "./projects/service";
 import type { createRunService } from "./runs/service";
 
+export interface AuthVariables {
+  authUser: { id: string };
+}
+
 type AppDeps = {
-  signupStore: AuthStore;
+  auth: BetterAuthApp;
   allowedOrigins?: string[];
   projectService?: ReturnType<typeof createProjectService>;
   runService?: ReturnType<typeof createRunService>;
 };
 
 export function createApp(deps: AppDeps) {
-  const app = new Hono();
+  const app = new Hono<{ Variables: AuthVariables }>();
+  const auth = deps.auth;
 
   const allowedOrigins = deps.allowedOrigins ?? ["http://localhost:5173", "http://127.0.0.1:5173"];
   app.use(
@@ -35,14 +40,14 @@ export function createApp(deps: AppDeps) {
   );
 
   registerHealthRoute(app);
-  registerAuthRoutes(app, deps.signupStore);
+  registerAuthRoutes(app, auth);
   if (deps.projectService) {
-    registerProjectRoutes(app, deps.signupStore, deps.projectService);
+    registerProjectRoutes(app, auth, deps.projectService);
   }
   if (deps.runService) {
-    registerRunRoutes(app, deps.signupStore, deps.runService);
+    registerRunRoutes(app, auth, deps.runService);
   }
-  app.get("/protected/ping", requireAuth(deps.signupStore), (c) => c.json({ status: "ok" }, 200));
+  app.get("/protected/ping", requireAuth(auth), (c) => c.json({ status: "ok" }, 200));
 
   return app;
 }

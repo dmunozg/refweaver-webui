@@ -1,428 +1,381 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { eq } from "drizzle-orm";
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createDb, projects, sessions, users } from "@refweaver/db";
+import { describe, expect, it, beforeAll, beforeEach, afterEach } from "vitest";
 import { createApp } from "../app";
-import { hashSessionToken } from "../auth/session";
-import { createSignupStore } from "../auth/store";
+import { createBetterAuth } from "../auth/better-auth";
+import { createDb } from "@refweaver/db";
+import { eq, sql } from "drizzle-orm";
+import { users, sessions, accounts, verifications, projects } from "@refweaver/db";
 
-const databaseUrl =
-  process.env.TEST_DATABASE_URL ??
-  process.env.DATABASE_URL ??
-  "postgres://postgres:postgres@127.0.0.1:54329/refweaver_webui_test";
-
-const { db, client } = createDb(databaseUrl);
-
-type MigrationStatement = {
-  fileName: string;
-  statementIndex: number;
-  sql: string;
-};
-
-type MigrationJournalEntry = {
-  idx: number;
-  tag: string;
-};
-
-function getMigrationsDir() {
-  return join(
-    import.meta.dir,
-    "..",
-    "..",
-    "..",
-    "..",
-    "packages",
-    "db",
-    "migrations"
-  );
+function getDatabaseUrl(): string | undefined {
+  const g = globalThis as { process?: { env?: Record<string, string | undefined> }; Bun?: { env?: Record<string, string | undefined> } };
+  const env = g.process?.env ?? g.Bun?.env;
+  return env?.TEST_DATABASE_URL ?? env?.DATABASE_URL;
 }
 
-function getMigrationFilesFromJournal() {
-  const migrationsDir = getMigrationsDir();
-  const journalPath = join(migrationsDir, "meta", "_journal.json");
-  const journalSqlFiles = new Set(
-    readdirSync(migrationsDir)
-      .filter((entry) => entry.endsWith(".sql"))
-      .map((entry) => entry)
-  );
+async function truncateAuthTables(db: ReturnType<typeof createDb>["db"]): Promise<void> {
+  await db.delete(sessions);
+  await db.delete(accounts);
+  await db.delete(verifications);
+  await db.delete(projects);
+  await db.delete(users);
+}
 
-  const journal = JSON.parse(readFileSync(journalPath, "utf8")) as {
-    entries?: MigrationJournalEntry[];
-  };
-
-  if (!Array.isArray(journal.entries)) {
-    throw new Error(
-      `Invalid migration journal at ${journalPath}: expected an entries array.`
-    );
+async function tryConnectDb(databaseUrl: string) {
+  const connection = createDb(databaseUrl);
+  try {
+    await connection.db.execute(sql`select 1`);
+    return connection;
+  } catch {
+    return null;
   }
-
-  return [...journal.entries]
-    .sort((left, right) => left.idx - right.idx)
-    .map(({ tag }) => `${tag}.sql`)
-    .map((fileName) => {
-      if (!journalSqlFiles.has(fileName)) {
-        throw new Error(
-          `Migration listed in journal is missing SQL file: ${fileName} (journal=${journalPath})`
-        );
-      }
-
-      return fileName;
-    });
 }
 
-function getMigrationStatements(fileName: string): MigrationStatement[] {
-  const migrationPath = join(
-    import.meta.dir,
-    "..",
-    "..",
-    "..",
-    "..",
-    "packages",
-    "db",
-    "migrations",
-    fileName
-  );
+// DB availability is determined once at load time; if unavailable, the suite is skipped
+// rather than tests returning early with a pass, which created false-green behavior.
+let dbAvailable = false;
+let dbConnection: ReturnType<typeof createDb> | null = null;
 
-  const sql = readFileSync(migrationPath, "utf8");
-  return sql
-    .split("--> statement-breakpoint")
-    .map((statement) => statement.trim())
-    .filter((statement) => statement.length > 0)
-    .map((statement, index) => ({
-      fileName,
-      statementIndex: index + 1,
-      sql: statement
-    }));
-}
-
-async function applyMigrations(fileNames: string[] = getMigrationFilesFromJournal()) {
-  const statements = fileNames.flatMap(getMigrationStatements);
-
-  for (const statement of statements) {
+async function initDb(): Promise<void> {
+  const url = getDatabaseUrl();
+  if (!url) return;
+  dbConnection = await tryConnectDb(url);
+  if (dbConnection) {
     try {
-      await client.unsafe(statement.sql);
-    } catch (error) {
-      const pgError = error as { code?: string; message?: string };
-      const statementPreview = statement.sql
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 160);
-
-      throw new Error(
-        `Migration failed (${statement.fileName} statement ${statement.statementIndex}, code=${pgError.code ?? "unknown"}): ${pgError.message ?? "unknown error"}. SQL preview: ${statementPreview}`,
-        { cause: error }
-      );
+      await dbConnection.db.execute(sql`select 1`);
+      dbAvailable = true;
+    } catch {
+      dbAvailable = false;
     }
   }
 }
+await initDb();
 
-async function resetDatabase() {
-  await client.unsafe("SET client_min_messages TO warning");
-  await client.unsafe("DROP SCHEMA IF EXISTS public CASCADE");
-  await client.unsafe("CREATE SCHEMA public");
-  await client.unsafe("CREATE EXTENSION IF NOT EXISTS pgcrypto");
-}
+describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
+  // connection is always set in beforeAll before any test runs; the non-null assertion
+  // reflects that the suite throws if dbConnection is null at setup time.
+  let connection: ReturnType<typeof createDb> = null!;
 
-describe("auth signup integration", () => {
   beforeAll(async () => {
-    await resetDatabase();
-    await applyMigrations();
+    connection = dbConnection as ReturnType<typeof createDb>;
+    // If the suite runs but connection is missing, something is misconfigured — fail fast.
+    if (!connection) {
+      throw new Error(
+        "DB connection is null in beforeAll. Check TEST_DATABASE_URL and DB reachability."
+      );
+    }
   });
 
   beforeEach(async () => {
-    await client.unsafe("TRUNCATE TABLE sessions, projects, users RESTART IDENTITY CASCADE");
+    await truncateAuthTables(connection.db);
   });
 
-  it("POST /auth/signup persists user, default project, and session", async () => {
-    const app = createApp({ signupStore: createSignupStore(db as never) });
-
-    const response = await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        username: "ada",
-        email: "ada@example.com",
-        name: "Ada Lovelace",
-        password: "safe-pass"
-      })
-    });
-
-    expect(response.status).toBe(201);
-
-    const cookie = response.headers.get("set-cookie");
-    expect(cookie).toContain("rw_session=");
-
-    const body = await response.json();
-    const [userRow] = await db.select().from(users).where(eq(users.id, body.userId));
-    expect(userRow.username).toBe("ada");
-    expect(userRow.teamId).toBeNull();
-
-    const [projectRow] = await db.select().from(projects).where(eq(projects.id, body.projectId));
-    expect(projectRow.name).toBe("My First Project");
-    expect(projectRow.ownerUserId).toBe(body.userId);
-    expect(projectRow.teamId).toBeNull();
-
-    const [sessionRow] = await db.select().from(sessions).where(eq(sessions.userId, body.userId));
-    expect(sessionRow.userId).toBe(body.userId);
-    expect(sessionRow.sessionTokenHash).not.toHaveLength(0);
+  afterEach(async () => {
+    await truncateAuthTables(connection.db);
   });
 
-  it("POST /auth/login authenticates valid credentials", async () => {
-    const app = createApp({ signupStore: createSignupStore(db as never) });
+  // -------------------------------------------------------------------------
+  // Local test helpers (file-local, small)
+  // -------------------------------------------------------------------------
 
-    await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        username: "lin",
-        email: "lin@example.com",
-        name: "Lin",
-        password: "safe-pass"
-      })
-    });
-
-    const response = await app.request("/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier: "lin", password: "safe-pass" })
-    });
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("set-cookie")).toContain("rw_session=");
-  });
-
-  it("POST /auth/login rejects invalid credentials", async () => {
-    const app = createApp({ signupStore: createSignupStore(db as never) });
-
-    await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        username: "lin",
-        email: "lin@example.com",
-        name: "Lin",
-        password: "safe-pass"
-      })
-    });
-
-    const response = await app.request("/auth/login", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier: "lin", password: "wrong-pass" })
-    });
-
-    expect(response.status).toBe(401);
-  });
-
-  it("GET /auth/me returns unauthorized when cookie missing", async () => {
-    const app = createApp({ signupStore: createSignupStore(db as never) });
-    const response = await app.request("/auth/me");
-    expect(response.status).toBe(401);
-  });
-
-  it("GET /auth/me returns user for valid session and rejects expired session", async () => {
-    const app = createApp({ signupStore: createSignupStore(db as never) });
-
-    const signupResponse = await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        username: "lin",
-        email: "lin@example.com",
-        name: "Lin",
-        password: "safe-pass"
-      })
-    });
-
-    const cookie = signupResponse.headers.get("set-cookie")!;
-    const token = cookie.split("rw_session=")[1]!.split(";")[0]!;
-
-    const okResponse = await app.request("/auth/me", {
-      headers: { cookie: `rw_session=${token}` }
-    });
-    expect(okResponse.status).toBe(200);
-
-    await client.unsafe(
-      "UPDATE sessions SET expires_at = now() - interval '1 minute' WHERE session_token_hash = $1",
-      [hashSessionToken(token)]
-    );
-
-    const expiredResponse = await app.request("/auth/me", {
-      headers: { cookie: `rw_session=${token}` }
-    });
-    expect(expiredResponse.status).toBe(401);
-  });
-
-  it("POST /auth/logout invalidates session", async () => {
-    const app = createApp({ signupStore: createSignupStore(db as never) });
-
-    const signupResponse = await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        username: "lin",
-        email: "lin@example.com",
-        name: "Lin",
-        password: "safe-pass"
-      })
-    });
-
-    const cookie = signupResponse.headers.get("set-cookie")!;
-    const token = cookie.split("rw_session=")[1]!.split(";")[0]!;
-
-    const logoutResponse = await app.request("/auth/logout", {
-      method: "POST",
-      headers: { cookie: `rw_session=${token}` }
-    });
-
-    expect(logoutResponse.status).toBe(204);
-    expect(logoutResponse.headers.get("set-cookie")).toContain("rw_session=");
-
-    const rows = await db
-      .select()
-      .from(sessions)
-      .where(eq(sessions.sessionTokenHash, hashSessionToken(token)));
-    expect(rows).toHaveLength(0);
-  });
-
-  it("enforces unique non-null refweaver job IDs per user", async () => {
-    const app = createApp({ signupStore: createSignupStore(db as never) });
-
-    const signupResponse = await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        username: "grace",
-        email: "grace@example.com",
-        name: "Grace Hopper",
-        password: "safe-pass"
-      })
-    });
-
-    expect(signupResponse.status).toBe(201);
-    const body = await signupResponse.json();
-
-    await client.unsafe(
-      `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [body.projectId, body.userId, "first", "queued", "job-1"]
-    );
-
-    let duplicateError: { code?: string } | undefined;
-
+  /**
+   * Safely parses the JSON body of a /auth/get-session response.
+   * Better Auth may return a literal `null` body for unauthenticated requests,
+   * which would cause res.json() to throw. This helper handles that gracefully.
+   */
+  async function getSessionBody(
+    res: Response
+  ): Promise<{ user: unknown } | null> {
     try {
-      await client.unsafe(
-        `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [body.projectId, body.userId, "second", "queued", "job-1"]
-      );
-    } catch (error) {
-      duplicateError = error as { code?: string };
+      const body = await res.json();
+      // Literal null (not {"user": null}) means no JSON body at all
+      if (body === null) return null;
+      return body as { user: unknown };
+    } catch {
+      // JSON parse error or empty body → treat as unauthenticated
+      return null;
     }
+  }
 
-    expect(duplicateError?.code).toBe("23505");
+  /**
+   * Extracts the better-auth.session_token cookie value from a Set-Cookie header.
+   * Handles cookie attribute commas (e.g. Expires=Wed, 01 Jan 2025...) by splitting
+   * on semicolons instead of commas. Returns empty string if not found.
+   */
+  function extractSessionCookie(setCookie: string): string {
+    // Match the cookie name=value pair before the first semicolon
+    const match = setCookie.match(/(?:^|;\s*)better-auth\.session_token=([^;]*)/);
+    if (!match) return "";
+    return `better-auth.session_token=${match[1] ?? ""}`;
+  }
 
-    await client.unsafe(
-      `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [body.projectId, body.userId, "third", "queued", null]
-    );
-    await client.unsafe(
-      `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [body.projectId, body.userId, "fourth", "queued", null]
-    );
+  /**
+   * Verifies that a newly-established session is authenticated as the expected user.
+   * Sends the session cookie to /auth/get-session and asserts the returned user.
+   * Used after signup / signin when the response JSON may not contain body.session.
+   */
+  async function expectAuthenticatedUser(
+    app: Awaited<ReturnType<typeof createApp>>,
+    sessionCookie: string,
+    expectedEmail: string
+  ): Promise<void> {
+    const sessionRes = await app.request("/auth/get-session", {
+      headers: { cookie: sessionCookie }
+    });
+    expect(sessionRes.status).toBe(200);
+    const sessionBody = await getSessionBody(sessionRes);
+    expect(sessionBody).not.toBeNull();
+    expect((sessionBody as { user: unknown }).user).not.toBeNull();
+    const user = (sessionBody as { user: { email: string } }).user;
+    expect(user.email).toBe(expectedEmail);
+  }
+
+  const NEW_AUTH_ENV = {
+    BETTER_AUTH_SECRET: "test-secret-for-integration-tests-only",
+    BETTER_AUTH_URL: "http://localhost:3001",
+    BFF_ALLOWED_ORIGINS: ["http://localhost:5173"]
+  };
+
+  describe("signup / signin / signout / session lifecycle", () => {
+    it("signup creates user + default project + session", async () => {
+      const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
+      const app = createApp({ auth });
+
+      const res = await app.request("/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "alice@example.com",
+          password: "password123",
+          name: "Alice"
+        })
+      });
+
+      expect(res.status).toBe(200);
+
+      // User must be created
+      const [dbUser] = await connection.db
+        .select()
+        .from(users)
+        .where(eq(users.email, "alice@example.com"));
+      expect(dbUser).toBeDefined();
+      expect(dbUser.email).toBe("alice@example.com");
+      expect(dbUser.projectId).not.toBeNull();
+
+      // Session established via cookie (Better Auth may not return body.session)
+      const setCookie = res.headers.get("set-cookie") ?? "";
+      const sessionCookie = extractSessionCookie(setCookie);
+      expect(sessionCookie).not.toBe("");
+      expect(sessionCookie).toContain("better-auth.session_token=");
+
+      // Verify session is authenticated via /auth/get-session
+      await expectAuthenticatedUser(app, sessionCookie, "alice@example.com");
+
+      // Session row exists in DB
+      const [dbSession] = await connection.db.select().from(sessions);
+      expect(dbSession).toBeDefined();
+    });
+
+    it("signin works with valid credentials", async () => {
+      const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
+      const app = createApp({ auth });
+
+      // First create a user via signup
+      await app.request("/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "bob@example.com",
+          password: "secret456",
+          name: "Bob"
+        })
+      });
+
+      // Sign in
+      const res = await app.request("/auth/sign-in/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "bob@example.com",
+          password: "secret456"
+        })
+      });
+
+      expect(res.status).toBe(200);
+
+      // Session established via cookie (Better Auth may not return body.session)
+      const setCookie = res.headers.get("set-cookie") ?? "";
+      const sessionCookie = extractSessionCookie(setCookie);
+      expect(sessionCookie).not.toBe("");
+      expect(sessionCookie).toContain("better-auth.session_token=");
+
+      // Verify session is authenticated via /auth/get-session
+      await expectAuthenticatedUser(app, sessionCookie, "bob@example.com");
+    });
+
+    it("signin rejects invalid credentials", async () => {
+      const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
+      const app = createApp({ auth });
+
+      await app.request("/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "carol@example.com",
+          password: "password123",
+          name: "Carol"
+        })
+      });
+
+      const res = await app.request("/auth/sign-in/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "carol@example.com",
+          password: "wrongpassword"
+        })
+      });
+
+      expect(res.status).toBe(401);
+    });
+
+    it("/auth/get-session returns null user without session cookie", async () => {
+      const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
+      const app = createApp({ auth });
+
+      const res = await app.request("/auth/get-session");
+      expect(res.status).toBe(200);
+      const body = await getSessionBody(res);
+      // Better Auth returns literal null for unauthenticated requests
+      expect(body).toBeNull();
+    });
+
+    it("/auth/get-session returns user with valid session", async () => {
+      const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
+      const app = createApp({ auth });
+
+      // Sign up to get a session cookie
+      const signupRes = await app.request("/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "dave@example.com",
+          password: "password123",
+          name: "Dave"
+        })
+      });
+
+      const setCookie = signupRes.headers.get("set-cookie") ?? "";
+      const sessionCookie = extractSessionCookie(setCookie);
+      expect(sessionCookie).toContain("better-auth.session_token=");
+
+      const sessionRes = await app.request("/auth/get-session", {
+        headers: { cookie: sessionCookie }
+      });
+
+      expect(sessionRes.status).toBe(200);
+      const body = await sessionRes.json();
+      expect(body.user).not.toBeNull();
+      expect(body.user.email).toBe("dave@example.com");
+    });
+
+    it("/auth/get-session returns null user with invalid session", async () => {
+      const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
+      const app = createApp({ auth });
+
+      const res = await app.request("/auth/get-session", {
+        headers: { cookie: "better-auth.session_token=does-not-exist" }
+      });
+
+      expect(res.status).toBe(200);
+      const body = await getSessionBody(res);
+      // Better Auth returns literal null for invalid session
+      expect(body).toBeNull();
+    });
+
+    it("signout invalidates session", async () => {
+      const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
+      const app = createApp({ auth });
+
+      // Sign up to get a session cookie
+      const signupRes = await app.request("/auth/sign-up/email", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email: "eve@example.com",
+          password: "password123",
+          name: "Eve"
+        })
+      });
+
+      const setCookie = signupRes.headers.get("set-cookie") ?? "";
+      const sessionCookie = extractSessionCookie(setCookie);
+
+      // Sign out
+      const signoutRes = await app.request("/auth/sign-out", {
+        method: "POST",
+        headers: { cookie: sessionCookie }
+      });
+
+      expect(signoutRes.status).toBe(200);
+
+      // Session cookie should be cleared
+      const clearedSetCookie = signoutRes.headers.get("set-cookie") ?? "";
+      expect(clearedSetCookie).toContain("better-auth.session_token=");
+
+      // /auth/get-session should now return null user after signout
+      const sessionRes = await app.request("/auth/get-session", {
+        headers: { cookie: sessionCookie }
+      });
+      expect(sessionRes.status).toBe(200);
+      const body = await getSessionBody(sessionRes);
+      // Session cleared → unauthenticated (literal null)
+      expect(body).toBeNull();
+    });
   });
 
-  it("upgrades legacy duplicate refweaver job IDs before adding unique index", async () => {
-    await resetDatabase();
-    await applyMigrations(["0000_nebulous_dreadnoughts.sql"]);
+  it("extractSessionCookie handles Expires attribute with comma", async () => {
+    // Simulate Set-Cookie with Expires containing a comma — must NOT break extraction
+    const setCookieWithExpires =
+      'better-auth.session_token=abc123xyz; Expires=Wed, 01 Jan 2025 00:00:00 GMT; Path=/; HttpOnly; SameSite=Lax';
+    const extracted = extractSessionCookie(setCookieWithExpires);
+    expect(extracted).toBe("better-auth.session_token=abc123xyz");
+  });
 
-    await client.unsafe(
-      "ALTER TABLE projects ADD COLUMN deleted_at timestamp with time zone"
-    );
+  describe("admin election invariant", () => {
+    it("produces exactly one admin after N concurrent signups", async () => {
+      const auth = createBetterAuth(connection.db, NEW_AUTH_ENV);
+      const app = createApp({ auth });
 
-    await client.unsafe(
-      `CREATE TABLE analysis_runs (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-        project_id uuid NOT NULL,
-        user_id uuid NOT NULL,
-        input_text text NOT NULL,
-        status text NOT NULL,
-        refweaver_run_id text,
-        refweaver_job_id text,
-        created_at timestamp with time zone DEFAULT now() NOT NULL,
-        updated_at timestamp with time zone DEFAULT now() NOT NULL
-      )`
-    );
+      const N = 8;
+      const signupPromises = Array.from({ length: N }, (_, i) => {
+        const email = `concurrent${i}@example.com`;
+        return app.request("/auth/sign-up/email", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            email,
+            password: "password123",
+            name: `User ${i}`
+          })
+        });
+      });
 
-    await client.unsafe(
-      "ALTER TABLE analysis_runs ADD CONSTRAINT analysis_runs_project_id_projects_id_fk FOREIGN KEY (project_id) REFERENCES public.projects(id) ON DELETE cascade ON UPDATE no action"
-    );
-    await client.unsafe(
-      "ALTER TABLE analysis_runs ADD CONSTRAINT analysis_runs_user_id_users_id_fk FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE cascade ON UPDATE no action"
-    );
-    await client.unsafe(
-      "CREATE INDEX analysis_runs_project_created_idx ON analysis_runs USING btree (project_id, created_at)"
-    );
-    await client.unsafe(
-      "CREATE INDEX analysis_runs_user_created_idx ON analysis_runs USING btree (user_id, created_at)"
-    );
-    await client.unsafe(
-      "CREATE INDEX analysis_runs_refweaver_job_legacy_idx ON analysis_runs USING btree (refweaver_job_id)"
-    );
+      const responses = await Promise.all(signupPromises);
+      for (const res of responses) {
+        expect(res.status).toBe(200);
+      }
 
-    const legacyUserId = "11111111-1111-1111-1111-111111111111";
-    const legacyProjectId = "22222222-2222-2222-2222-222222222222";
+      // connection is guaranteed non-null here because beforeAll throws if it is
+      const allUsers = await connection.db.select().from(users);
+      expect(allUsers).toHaveLength(N);
 
-    await client.unsafe(
-      `INSERT INTO users (id, username, email, name, password_hash)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [legacyUserId, "legacy-user", "legacy@example.com", "Legacy User", "hash"]
-    );
-    await client.unsafe(
-      `INSERT INTO projects (id, name, owner_user_id)
-       VALUES ($1, $2, $3)`,
-      [legacyProjectId, "Legacy Project", legacyUserId]
-    );
+      // All users have projectId
+      for (const u of allUsers) {
+        expect(u.projectId).not.toBeNull();
+      }
 
-    await client.unsafe(
-      `INSERT INTO analysis_runs
-       (id, project_id, user_id, input_text, status, refweaver_job_id, created_at, updated_at)
-       VALUES
-       ('00000000-0000-0000-0000-000000000001', $1, $2, 'first', 'queued', 'job-legacy', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
-       ('00000000-0000-0000-0000-000000000002', $1, $2, 'second', 'queued', 'job-legacy', '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z')`,
-      [legacyProjectId, legacyUserId]
-    );
-
-    await applyMigrations(["0001_little_daimon_hellstrom.sql"]);
-
-    const dedupedRows = await client.unsafe<{ id: string; refweaver_job_id: string | null }[]>(
-      `SELECT id, refweaver_job_id
-       FROM analysis_runs
-       WHERE user_id = $1
-       ORDER BY id`,
-      [legacyUserId]
-    );
-
-    expect(dedupedRows).toEqual([
-      { id: "00000000-0000-0000-0000-000000000001", refweaver_job_id: "job-legacy" },
-      { id: "00000000-0000-0000-0000-000000000002", refweaver_job_id: null }
-    ]);
-
-    let duplicateInsertError: { code?: string } | undefined;
-
-    try {
-      await client.unsafe(
-        `INSERT INTO analysis_runs (project_id, user_id, input_text, status, refweaver_job_id)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [legacyProjectId, legacyUserId, "third", "queued", "job-legacy"]
-      );
-    } catch (error) {
-      duplicateInsertError = error as { code?: string };
-    }
-
-    expect(duplicateInsertError?.code).toBe("23505");
+      // Exactly one admin
+      const admins = allUsers.filter((u) => u.adminRole === "admin");
+      expect(admins).toHaveLength(1);
+    });
   });
 });

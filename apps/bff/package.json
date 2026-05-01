@@ -7,7 +7,9 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@better-auth/drizzle-adapter": "^1.5.6",
     "@refweaver/db": "workspace:*",
+    "better-auth": "^1.5.6",
     "drizzle-orm": "^0.44.5",
     "hono": "^4.7.4"
   }

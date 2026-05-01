@@ -1,31 +1,44 @@
 import type { Hono } from "hono";
+import type { BetterAuthApp } from "../auth/better-auth";
 import { requireAuth } from "../middleware/require-auth";
 import { toErrorResponse } from "../http/errors";
 import { isUuid } from "../http/validation";
 import type { createProjectService } from "../projects/service";
+import type { AuthVariables } from "../app";
 
 type ProjectService = ReturnType<typeof createProjectService>;
 
-type AuthStore = Parameters<typeof requireAuth>[0];
+type AuthStore = BetterAuthApp;
 
-export function registerProjectRoutes(app: Hono, authStore: AuthStore, projectService: ProjectService): void {
+// Typed status code constants — avoids repetitive `as const` casts on literals
+const S = {
+  OK: 200,
+  CREATED: 201,
+  UNPROCESSABLE: 422,
+} as const;
+
+function getAuthUser(c: import("hono").Context<{ Variables: AuthVariables }>): { id: string } {
+  return c.get("authUser");
+}
+
+export function registerProjectRoutes(app: Hono<{ Variables: AuthVariables }>, authStore: AuthStore, projectService: ProjectService): void {
   app.post("/projects", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const user = getAuthUser(c);
     let body: unknown;
     try {
       body = await c.req.json();
     } catch {
-      return c.json({ error: { code: "validation_error", message: "Invalid JSON payload" } }, 422);
+      return c.json({ error: { code: "validation_error", message: "Invalid JSON payload" } }, S.UNPROCESSABLE);
     }
 
     const input = body as { name?: unknown };
     if (typeof input.name !== "string") {
-      return c.json({ error: { code: "validation_error", message: "Project name is required" } }, 422);
+      return c.json({ error: { code: "validation_error", message: "Project name is required" } }, S.UNPROCESSABLE);
     }
 
     try {
-      const project = await projectService.createProject(authUser.id, input.name);
-      return c.json({ project }, 201);
+      const project = await projectService.createProject(user.id, input.name);
+      return c.json({ project }, S.CREATED);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);
@@ -33,12 +46,12 @@ export function registerProjectRoutes(app: Hono, authStore: AuthStore, projectSe
   });
 
   app.get("/projects", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const user = getAuthUser(c);
     const includeDeleted = c.req.query("include_deleted") === "true";
 
     try {
-      const projects = await projectService.listProjects(authUser.id, includeDeleted);
-      return c.json({ projects }, 200);
+      const projects = await projectService.listProjects(user.id, includeDeleted);
+      return c.json({ projects }, S.OK);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);
@@ -46,14 +59,14 @@ export function registerProjectRoutes(app: Hono, authStore: AuthStore, projectSe
   });
 
   app.get("/projects/:projectId", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const user = getAuthUser(c);
     const projectId = c.req.param("projectId");
     if (!isUuid(projectId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, S.UNPROCESSABLE);
     }
     try {
-      const project = await projectService.getProject(authUser.id, projectId);
-      return c.json({ project }, 200);
+      const project = await projectService.getProject(user.id, projectId);
+      return c.json({ project }, S.OK);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);
@@ -61,29 +74,29 @@ export function registerProjectRoutes(app: Hono, authStore: AuthStore, projectSe
   });
 
   app.patch("/projects/:projectId", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const user = getAuthUser(c);
     const projectId = c.req.param("projectId");
     if (!isUuid(projectId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, S.UNPROCESSABLE);
     }
     let body: unknown;
     try {
       body = await c.req.json();
     } catch {
-      return c.json({ error: { code: "validation_error", message: "Invalid JSON payload" } }, 422);
+      return c.json({ error: { code: "validation_error", message: "Invalid JSON payload" } }, S.UNPROCESSABLE);
     }
     const input = body as { name?: unknown };
     if (typeof input.name !== "string") {
-      return c.json({ error: { code: "validation_error", message: "Project name is required" } }, 422);
+      return c.json({ error: { code: "validation_error", message: "Project name is required" } }, S.UNPROCESSABLE);
     }
 
     try {
       const project = await projectService.updateProjectName(
-        authUser.id,
+        user.id,
         projectId,
         input.name
       );
-      return c.json({ project }, 200);
+      return c.json({ project }, S.OK);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);
@@ -91,14 +104,14 @@ export function registerProjectRoutes(app: Hono, authStore: AuthStore, projectSe
   });
 
   app.delete("/projects/:projectId", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const user = getAuthUser(c);
     const projectId = c.req.param("projectId");
     if (!isUuid(projectId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, S.UNPROCESSABLE);
     }
     try {
-      const project = await projectService.softDeleteProject(authUser.id, projectId);
-      return c.json({ project }, 200);
+      const project = await projectService.softDeleteProject(user.id, projectId);
+      return c.json({ project }, S.OK);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);
@@ -106,14 +119,14 @@ export function registerProjectRoutes(app: Hono, authStore: AuthStore, projectSe
   });
 
   app.post("/projects/:projectId/restore", requireAuth(authStore), async (c) => {
-    const authUser = c.get("authUser") as { id: string };
+    const user = getAuthUser(c);
     const projectId = c.req.param("projectId");
     if (!isUuid(projectId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, S.UNPROCESSABLE);
     }
     try {
-      const project = await projectService.restoreProject(authUser.id, projectId);
-      return c.json({ project }, 200);
+      const project = await projectService.restoreProject(user.id, projectId);
+      return c.json({ project }, S.OK);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);

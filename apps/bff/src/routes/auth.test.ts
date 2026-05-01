@@ -1,173 +1,103 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../app";
+import type { BetterAuthApp } from "../auth/better-auth";
 
-describe("auth routes", () => {
-  function buildStore() {
-    return {
-      async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-        return fn(this);
-      },
-      async createUser() {
-        return { id: "user-1" };
-      },
-      async createProject() {
-        return { id: "project-1" };
-      },
-      async createSession() {
-        return { id: "session-1" };
-      },
-      async findUserByIdentifier() {
-        return {
-          id: "user-1",
-          username: "ada",
-          email: "ada@example.com",
-          name: "Ada",
-          passwordHash: await Bun.password.hash("safe-pass")
-        };
-      },
-      async findUserById() {
-        return {
-          id: "user-1",
-          username: "ada",
-          email: "ada@example.com",
-          name: "Ada",
-          teamId: null
-        };
-      },
-      async findSessionByTokenHash() {
-        return { id: "session-1", userId: "user-1", expiresAt: new Date(Date.now() + 60_000) };
-      },
-      async deleteSessionByTokenHash() {
-        return;
-      }
-    };
-  }
-
-  it("returns 409 for duplicate username/email", async () => {
-    const duplicateError = Object.assign(new Error("duplicate"), { code: "23505" });
-
-    const app = createApp({
-      signupStore: {
-        async withTransaction<T>(fn: (txStore: any) => Promise<T>) {
-          return fn(this);
-        },
-        async createUser() {
-          throw duplicateError;
-        },
-        async createProject() {
-          return { id: "project-1" };
-        },
-        async createSession() {
-          return { id: "session-1" };
-        },
-        async findUserByIdentifier() {
-          return null;
-        },
-        async findUserById() {
-          return null;
-        },
-        async findSessionByTokenHash() {
-          return null;
-        },
-        async deleteSessionByTokenHash() {
-          return;
+function buildAuth(): BetterAuthApp {
+  return {
+    handler: vi.fn(async (request: Request) => {
+      const url = new URL(request.url);
+      if (url.pathname === "/auth/sign-in" && request.method === "POST") {
+        const body = await request.json();
+        if (body.password === "wrong") {
+          return new Response(JSON.stringify({ error: "invalid credentials" }), {
+            status: 401,
+            headers: { "content-type": "application/json" }
+          });
+        }
+        if (body.email !== "ada@example.com") {
+          return new Response(JSON.stringify({ error: "user not found" }), {
+            status: 401,
+            headers: { "content-type": "application/json" }
+          });
         }
       }
-    });
+      if (url.pathname === "/auth/sign-up" && request.method === "POST") {
+        const body = await request.json();
+        if (!body.email || !body.email.includes("@")) {
+          return new Response(JSON.stringify({ error: "invalid email" }), {
+            status: 400,
+            headers: { "content-type": "application/json" }
+          });
+        }
+      }
+      return new Response(JSON.stringify({ path: url.pathname }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    }),
+    api: {
+      async getSession() {
+        return {
+          user: { id: "user-1", username: "ada", email: "ada@example.com", name: "Ada", adminRole: "user", projectId: null }
+        };
+      }
+    }
+  };
+}
 
-    const response = await app.request("/auth/signup", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        username: "ada",
-        email: "ada@example.com",
-        name: "Ada Lovelace",
-        password: "safe-pass"
-      })
-    });
-
-    expect(response.status).toBe(409);
-  });
-
-  it("logs in and sets session cookie", async () => {
-    const app = createApp({ signupStore: buildStore() });
+describe("auth routes", () => {
+  it("proxies auth requests to Better Auth", async () => {
+    const auth = buildAuth();
+    const app = createApp({ auth });
 
     const response = await app.request("/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ identifier: "ada", password: "safe-pass" })
+      body: JSON.stringify({ email: "ada@example.com", password: "safe-pass" })
     });
 
     expect(response.status).toBe(200);
-    expect(response.headers.get("set-cookie")).toContain("rw_session=");
+    expect(await response.json()).toEqual({ path: "/auth/login" });
+    expect(auth.handler).toHaveBeenCalledTimes(1);
   });
 
-  it("returns current user from session", async () => {
-    const app = createApp({ signupStore: buildStore() });
+  it("rejects invalid password with 401", async () => {
+    const auth = buildAuth();
+    const app = createApp({ auth });
 
-    const response = await app.request("/auth/me", {
-      headers: { cookie: "rw_session=known-token" }
-    });
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.user.id).toBe("user-1");
-  });
-
-  it("logs out and clears cookie", async () => {
-    const app = createApp({ signupStore: buildStore() });
-
-    const response = await app.request("/auth/logout", {
+    const response = await app.request("/auth/sign-in", {
       method: "POST",
-      headers: { cookie: "rw_session=known-token" }
-    });
-
-    expect(response.status).toBe(204);
-    expect(response.headers.get("set-cookie")).toContain("rw_session=");
-  });
-
-  it("returns 401 from /auth/me for expired session", async () => {
-    const app = createApp({
-      signupStore: {
-        ...buildStore(),
-        async findSessionByTokenHash() {
-          return {
-            id: "session-1",
-            userId: "user-1",
-            expiresAt: new Date(Date.now() - 60_000)
-          };
-        }
-      }
-    });
-
-    const response = await app.request("/auth/me", {
-      headers: { cookie: "rw_session=known-token" }
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "ada@example.com", password: "wrong" })
     });
 
     expect(response.status).toBe(401);
   });
 
-  it("returns 422 for malformed signup json", async () => {
-    const app = createApp({ signupStore: buildStore() });
+  it("rejects unknown email with 401", async () => {
+    const auth = buildAuth();
+    const app = createApp({ auth });
 
-    const response = await app.request("/auth/signup", {
+    const response = await app.request("/auth/sign-in", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: "{"
+      body: JSON.stringify({ email: "unknown@example.com", password: "any-password" })
     });
 
-    expect(response.status).toBe(422);
+    expect(response.status).toBe(401);
+    expect(auth.handler).toHaveBeenCalled();
   });
 
-  it("returns 422 for malformed login json", async () => {
-    const app = createApp({ signupStore: buildStore() });
+  it("rejects malformed email with 400", async () => {
+    const auth = buildAuth();
+    const app = createApp({ auth });
 
-    const response = await app.request("/auth/login", {
+    const response = await app.request("/auth/sign-up", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: "{"
+      body: JSON.stringify({ email: "not-an-email", password: "password123" })
     });
 
-    expect(response.status).toBe(422);
+    expect(response.status).toBe(400);
   });
 });

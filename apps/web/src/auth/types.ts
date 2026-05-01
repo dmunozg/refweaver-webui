@@ -1,9 +1,10 @@
 export type AuthUser = {
   id: string;
-  username: string;
+  username: string | null;
   email: string;
   name: string;
-  teamId: string | null;
+  adminRole: "user" | "admin";
+  projectId: string | null;
 };
 
 export type AuthState =
