@@ -1,11 +1,11 @@
 import TestRenderer, { act } from "react-test-renderer";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useAuth } from "./use-auth";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 // ---------------------------------------------------------------------------
-// Mock client module
+// Mock client module — must precede import of useAuth to guarantee correct
+// module-evaluation order in all Bun versions (1.3.10 vs 1.3.11).
 // ---------------------------------------------------------------------------
 vi.mock("./client", () => ({
   authClient: {
@@ -17,6 +17,8 @@ vi.mock("./client", () => ({
 }));
 
 import { authClient } from "./client";
+(vi as unknown as { unmock?: (path: string) => void }).unmock?.("./use-auth");
+const { useAuth } = await import("./use-auth");
 
 // ---------------------------------------------------------------------------
 // Shared harness
@@ -60,7 +62,7 @@ function setSession(session: SessionState) {
 // ---------------------------------------------------------------------------
 afterEach(() => {
   capture.current = null;
-  vi.resetAllMocks();
+  vi.clearAllMocks();
 });
 
 describe("useAuth state machine", () => {

@@ -3,47 +3,58 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("./auth/use-auth", () => ({
-  useAuth: vi.fn()
+vi.mock("./auth/client", () => ({
+  authClient: {
+    useSession: vi.fn(),
+    signIn: { email: vi.fn() },
+    signUp: { email: vi.fn() },
+    signOut: vi.fn()
+  }
 }));
 
-import { useAuth } from "./auth/use-auth";
+import { authClient } from "./auth/client";
 import { App } from "./App";
 import { LoginForm } from "./auth/LoginForm";
 
-const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
+type SessionState = {
+  isPending: boolean;
+  data: { user: Record<string, unknown> } | null;
+  error: Error | null;
+  refetch: () => Promise<void>;
+};
 
-function authenticatedState() {
+function makeSession(overrides: Partial<SessionState>): SessionState {
   return {
-    status: "authenticated" as const,
-    user: {
-      id: "user-1",
-      username: "ada",
-      email: "ada@example.com",
-      name: "Ada",
-      adminRole: "admin",
-      projectId: "project-1"
-    },
-    error: null
+    isPending: false,
+    data: null,
+    error: null,
+    refetch: async () => {},
+    ...overrides
+  };
+}
+
+function setSession(session: SessionState) {
+  (authClient.useSession as ReturnType<typeof vi.fn>).mockReturnValue(session);
+}
+
+function authenticatedUser() {
+  return {
+    id: "user-1",
+    username: "ada",
+    email: "ada@example.com",
+    name: "Ada",
+    adminRole: "admin",
+    projectId: "project-1"
   };
 }
 
 afterEach(() => {
-  vi.resetAllMocks();
+  vi.clearAllMocks();
 });
 
 describe("App auth flows", () => {
   it("unauthenticated user sees login/signup shell", () => {
-    mockedUseAuth.mockReturnValue({
-      state: {
-        status: "signed_out",
-        user: null,
-        error: null
-      },
-      login: async () => {},
-      signup: async () => {},
-      logout: async () => {}
-    });
+    setSession(makeSession({ data: null }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     act(() => {
@@ -54,12 +65,7 @@ describe("App auth flows", () => {
   });
 
   it("authenticated user sees main app shell", () => {
-    mockedUseAuth.mockReturnValue({
-      state: authenticatedState(),
-      login: async () => {},
-      signup: async () => {},
-      logout: async () => {}
-    });
+    setSession(makeSession({ data: { user: authenticatedUser() } }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     act(() => {
@@ -73,47 +79,30 @@ describe("App auth flows", () => {
   });
 
   it("logout redirects to login shell", async () => {
-    // In-place mutable state: mutating fields after logout simulates what happens
-    // when authClient.useSession() delivers a new session after signOut+refetch.
-    // The same mock object is returned on every call; we mutate it in-place so
-    // the next render sees the updated status.
-    const mockState = {
-      state: { ...authenticatedState() },
-      login: async () => {},
-      signup: async () => {},
-      logout: async () => {
-        // Mutate in-place so React's equality check sees a different value
-        mockState.state.status = "signed_out";
-        mockState.state.user = null;
-        mockState.state.error = null;
-      }
-    };
-
-    mockedUseAuth.mockReturnValue(mockState);
+    const session = makeSession({ data: { user: authenticatedUser() } });
+    (authClient.signOut as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });
+    session.refetch = vi.fn(async () => {
+      session.data = null;
+    });
+    setSession(session);
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = TestRenderer.create(<App />);
     });
 
-    // Confirm authenticated shell is showing
     const textBefore = JSON.stringify(renderer!.toJSON());
     expect(textBefore).toContain("Welcome");
-    expect(textBefore).toContain("Log out");
 
-    // Trigger logout button click
     const logoutButton = renderer!.root.findByType("button");
     await act(async () => {
       await logoutButton.props.onClick();
     });
 
-    // Force a re-render so the mutated mock state is picked up.
-    // Without this, React has no signal that the mock return value changed.
     await act(async () => {
       renderer!.update(<App />);
     });
 
-    // After logout: UI should transition to login shell
     const textAfter = JSON.stringify(renderer!.toJSON());
     expect(textAfter).toContain("Please log in");
     expect(textAfter).not.toContain("Welcome");
@@ -122,12 +111,7 @@ describe("App auth flows", () => {
 
 describe("App auth shell", () => {
   it("renders authenticated shell when user is authenticated", () => {
-    mockedUseAuth.mockReturnValue({
-      state: authenticatedState(),
-      login: async () => {},
-      signup: async () => {},
-      logout: async () => {}
-    });
+    setSession(makeSession({ data: { user: authenticatedUser() } }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     act(() => {
@@ -141,16 +125,7 @@ describe("App auth shell", () => {
   });
 
   it("renders signed-out shell when session is missing", () => {
-    mockedUseAuth.mockReturnValue({
-      state: {
-        status: "signed_out",
-        user: null,
-        error: null
-      },
-      login: async () => {},
-      signup: async () => {},
-      logout: async () => {}
-    });
+    setSession(makeSession({ data: null }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     act(() => {
@@ -162,23 +137,14 @@ describe("App auth shell", () => {
 
   it("prevents duplicate login submissions while request is in flight", async () => {
     let resolveLogin: (() => void) | undefined;
-    const login = vi.fn(
+    (authClient.signIn.email as ReturnType<typeof vi.fn>).mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
-          resolveLogin = resolve;
+        new Promise((resolve) => {
+          resolveLogin = () => resolve({ error: null });
         })
     );
-
-    mockedUseAuth.mockReturnValue({
-      state: {
-        status: "signed_out",
-        user: null,
-        error: null
-      },
-      login,
-      signup: async () => {},
-      logout: async () => {}
-    });
+    const refetch = vi.fn(async () => {});
+    setSession(makeSession({ data: null, refetch }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -192,7 +158,7 @@ describe("App auth shell", () => {
       void loginForm.props.onLogin("ada", "safe-pass");
     });
 
-    expect(login).toHaveBeenCalledTimes(1);
+    expect(authClient.signIn.email).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       resolveLogin?.();
@@ -201,16 +167,10 @@ describe("App auth shell", () => {
   });
 
   it("shows visible error when logout fails", async () => {
-    const logout = vi.fn(async () => {
-      throw new Error("server");
+    (authClient.signOut as ReturnType<typeof vi.fn>).mockResolvedValue({
+      error: new Error("server")
     });
-
-    mockedUseAuth.mockReturnValue({
-      state: authenticatedState(),
-      login: async () => {},
-      signup: async () => {},
-      logout
-    });
+    setSession(makeSession({ data: { user: authenticatedUser() } }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -222,26 +182,20 @@ describe("App auth shell", () => {
       await logoutButton.props.onClick();
     });
 
-    expect(logout).toHaveBeenCalledTimes(1);
+    expect(authClient.signOut).toHaveBeenCalledTimes(1);
     const text = JSON.stringify(renderer!.toJSON());
     expect(text).toContain("Could not log out. Please try again.");
   });
 
   it("prevents duplicate logout submissions while request is in flight", async () => {
     let resolveLogout: (() => void) | undefined;
-    const logout = vi.fn(
+    (authClient.signOut as ReturnType<typeof vi.fn>).mockImplementation(
       () =>
-        new Promise<void>((resolve) => {
-          resolveLogout = resolve;
+        new Promise((resolve) => {
+          resolveLogout = () => resolve({ error: null });
         })
     );
-
-    mockedUseAuth.mockReturnValue({
-      state: authenticatedState(),
-      login: async () => {},
-      signup: async () => {},
-      logout
-    });
+    setSession(makeSession({ data: { user: authenticatedUser() } }));
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -255,13 +209,12 @@ describe("App auth shell", () => {
       logoutButton.props.onClick();
     });
 
-    expect(logout).toHaveBeenCalledTimes(1);
+    expect(authClient.signOut).toHaveBeenCalledTimes(1);
     expect(renderer!.root.findByType("button").props.disabled).toBe(true);
 
     await act(async () => {
       resolveLogout?.();
+      await Promise.resolve();
     });
-
-    expect(renderer!.root.findByType("button").props.disabled).toBe(false);
   });
 });

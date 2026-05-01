@@ -103,7 +103,8 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
   function extractSessionCookie(setCookie: string): string {
     // Match the cookie name=value pair before the first semicolon
     const match = setCookie.match(/(?:^|;\s*)better-auth\.session_token=([^;]*)/);
-    return match ? match[1] ?? "" : "";
+    if (!match) return "";
+    return `better-auth.session_token=${match[1] ?? ""}`;
   }
 
   /**
@@ -163,6 +164,7 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       const setCookie = res.headers.get("set-cookie") ?? "";
       const sessionCookie = extractSessionCookie(setCookie);
       expect(sessionCookie).not.toBe("");
+      expect(sessionCookie).toContain("better-auth.session_token=");
 
       // Verify session is authenticated via /auth/get-session
       await expectAuthenticatedUser(app, sessionCookie, "alice@example.com");
@@ -203,6 +205,7 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       const setCookie = res.headers.get("set-cookie") ?? "";
       const sessionCookie = extractSessionCookie(setCookie);
       expect(sessionCookie).not.toBe("");
+      expect(sessionCookie).toContain("better-auth.session_token=");
 
       // Verify session is authenticated via /auth/get-session
       await expectAuthenticatedUser(app, sessionCookie, "bob@example.com");
@@ -262,6 +265,7 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
 
       const setCookie = signupRes.headers.get("set-cookie") ?? "";
       const sessionCookie = extractSessionCookie(setCookie);
+      expect(sessionCookie).toContain("better-auth.session_token=");
 
       const sessionRes = await app.request("/auth/get-session", {
         headers: { cookie: sessionCookie }
@@ -333,7 +337,7 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
     const setCookieWithExpires =
       'better-auth.session_token=abc123xyz; Expires=Wed, 01 Jan 2025 00:00:00 GMT; Path=/; HttpOnly; SameSite=Lax';
     const extracted = extractSessionCookie(setCookieWithExpires);
-    expect(extracted).toBe("abc123xyz");
+    expect(extracted).toBe("better-auth.session_token=abc123xyz");
   });
 
   describe("admin election invariant", () => {
