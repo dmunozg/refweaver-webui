@@ -96,17 +96,14 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
   }
 
   /**
-   * Extracts the better-auth.session_token cookie value from a set-cookie header.
-   * Returns empty string if not found.
+   * Extracts the better-auth.session_token cookie value from a Set-Cookie header.
+   * Handles cookie attribute commas (e.g. Expires=Wed, 01 Jan 2025...) by splitting
+   * on semicolons instead of commas. Returns empty string if not found.
    */
-  function parseSessionCookie(setCookie: string): string {
-    return (
-      setCookie
-        .split(",")
-        .find((c) => c.includes("better-auth.session_token"))
-        ?.split(";")[0]
-        ?.trim() ?? ""
-    );
+  function extractSessionCookie(setCookie: string): string {
+    // Match the cookie name=value pair before the first semicolon
+    const match = setCookie.match(/(?:^|;\s*)better-auth\.session_token=([^;]*)/);
+    return match ? match[1] ?? "" : "";
   }
 
   /**
@@ -164,7 +161,7 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
 
       // Session established via cookie (Better Auth may not return body.session)
       const setCookie = res.headers.get("set-cookie") ?? "";
-      const sessionCookie = parseSessionCookie(setCookie);
+      const sessionCookie = extractSessionCookie(setCookie);
       expect(sessionCookie).not.toBe("");
 
       // Verify session is authenticated via /auth/get-session
@@ -204,7 +201,7 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
 
       // Session established via cookie (Better Auth may not return body.session)
       const setCookie = res.headers.get("set-cookie") ?? "";
-      const sessionCookie = parseSessionCookie(setCookie);
+      const sessionCookie = extractSessionCookie(setCookie);
       expect(sessionCookie).not.toBe("");
 
       // Verify session is authenticated via /auth/get-session
@@ -264,10 +261,10 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       });
 
       const setCookie = signupRes.headers.get("set-cookie") ?? "";
-      const sessionCookie = setCookie.split(",").find((c) => c.includes("better-auth.session_token")) ?? "";
+      const sessionCookie = extractSessionCookie(setCookie);
 
       const sessionRes = await app.request("/auth/get-session", {
-        headers: { cookie: sessionCookie.trim() }
+        headers: { cookie: sessionCookie }
       });
 
       expect(sessionRes.status).toBe(200);
@@ -306,12 +303,12 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
       });
 
       const setCookie = signupRes.headers.get("set-cookie") ?? "";
-      const sessionCookie = setCookie.split(",").find((c) => c.includes("better-auth.session_token")) ?? "";
+      const sessionCookie = extractSessionCookie(setCookie);
 
       // Sign out
       const signoutRes = await app.request("/auth/sign-out", {
         method: "POST",
-        headers: { cookie: sessionCookie.trim() }
+        headers: { cookie: sessionCookie }
       });
 
       expect(signoutRes.status).toBe(200);
@@ -322,13 +319,21 @@ describe.skipIf(!dbAvailable)("auth integration (DB-backed)", () => {
 
       // /auth/get-session should now return null user after signout
       const sessionRes = await app.request("/auth/get-session", {
-        headers: { cookie: sessionCookie.trim() }
+        headers: { cookie: sessionCookie }
       });
       expect(sessionRes.status).toBe(200);
       const body = await getSessionBody(sessionRes);
       // Session cleared → unauthenticated (literal null)
       expect(body).toBeNull();
     });
+  });
+
+  it("extractSessionCookie handles Expires attribute with comma", async () => {
+    // Simulate Set-Cookie with Expires containing a comma — must NOT break extraction
+    const setCookieWithExpires =
+      'better-auth.session_token=abc123xyz; Expires=Wed, 01 Jan 2025 00:00:00 GMT; Path=/; HttpOnly; SameSite=Lax';
+    const extracted = extractSessionCookie(setCookieWithExpires);
+    expect(extracted).toBe("abc123xyz");
   });
 
   describe("admin election invariant", () => {
