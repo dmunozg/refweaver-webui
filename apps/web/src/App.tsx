@@ -1,53 +1,38 @@
 import { useAuth } from "./auth/use-auth";
 import { useRef, useState } from "react";
 import { LoginForm } from "./auth/LoginForm";
-import { SignupForm } from "./auth/SignupForm";
-import { getUserDisplayName } from "./auth/display-name";
+import { DashboardView } from "./analysis/DashboardView";
+import { AnalysisListView } from "./analysis/AnalysisListView";
+import { AnalysisDetailView } from "./analysis/AnalysisDetailView";
+import { NewAnalysisView } from "./analysis/NewAnalysisView";
+import { AnalysisRouteView } from "./navigation/AnalysisRouteView";
+import { useRoute } from "./navigation/use-route";
 
 export function App() {
-  const { state, login, signup, logout } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [formError, setFormError] = useState<string | null>(null);
+  const { state, login, logout } = useAuth();
+  const { route, navigate } = useRoute();
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const formInFlightRef = useRef(false);
+  const loginInFlightRef = useRef(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const logoutInFlightRef = useRef(false);
 
-  async function handleLogin(email: string, password: string) {
-    if (formInFlightRef.current) {
+  async function handleLogin(identifier: string, password: string) {
+    if (loginInFlightRef.current) {
       return;
     }
 
-    formInFlightRef.current = true;
-    setFormError(null);
+    loginInFlightRef.current = true;
+    setLoginError(null);
     setSessionError(null);
     setIsSubmitting(true);
     try {
-      await login(email, password);
+      await login(identifier, password);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Login failed. Please try again.");
+      setLoginError(error instanceof Error ? error.message : "Login failed. Please try again.");
     } finally {
-      formInFlightRef.current = false;
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleSignup(input: { email: string; password: string; name: string; username?: string }) {
-    if (formInFlightRef.current) {
-      return;
-    }
-
-    formInFlightRef.current = true;
-    setFormError(null);
-    setSessionError(null);
-    setIsSubmitting(true);
-    try {
-      await signup(input);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Signup failed. Please try again.");
-    } finally {
-      formInFlightRef.current = false;
+      loginInFlightRef.current = false;
       setIsSubmitting(false);
     }
   }
@@ -62,7 +47,6 @@ export function App() {
     setSessionError(null);
     try {
       await logout();
-      setMode("login");
     } catch {
       setSessionError("Could not log out. Please try again.");
     } finally {
@@ -78,11 +62,38 @@ export function App() {
   if (state.status === "authenticated") {
     return (
       <main>
-        {sessionError ? <p>{sessionError}</p> : null}
-        <p>Welcome, {getUserDisplayName(state.user)}</p>
-        <button type="button" onClick={handleLogout} disabled={isLoggingOut}>
-          Log out
-        </button>
+        <header>
+          {sessionError ? <p>{sessionError}</p> : null}
+          <p>Welcome, {state.user.name}</p>
+          <nav aria-label="Analysis navigation">
+            <button type="button" onClick={() => navigate({ kind: "dashboard" })}>
+              Dashboard
+            </button>
+            <button type="button" onClick={() => navigate({ kind: "new" })}>
+              New analysis
+            </button>
+            <button type="button" onClick={() => navigate({ kind: "list" })}>
+              Analysis list
+            </button>
+          </nav>
+          <button type="button" onClick={handleLogout} disabled={isLoggingOut}>
+            Log out
+          </button>
+        </header>
+        {route.kind === "dashboard" ? (
+          <DashboardView
+            onCreateNewAnalysis={() => navigate({ kind: "new" })}
+            onViewAllAnalyses={() => navigate({ kind: "list" })}
+          />
+        ) : route.kind === "list" ? (
+          <AnalysisListView onRunSelect={(runId) => navigate({ kind: "detail", runId })} />
+        ) : route.kind === "detail" ? (
+          <AnalysisDetailView runId={route.runId} onCreateNewAnalysis={() => navigate({ kind: "new" })} />
+        ) : route.kind === "new" ? (
+          <NewAnalysisView onSubmitSuccess={() => navigate({ kind: "dashboard" })} />
+        ) : (
+          <AnalysisRouteView route={route} />
+        )}
       </main>
     );
   }
@@ -91,33 +102,15 @@ export function App() {
     return (
       <main>
         <p>{state.error}</p>
-        {mode === "login" ? (
-          <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={formError} />
-        ) : (
-          <SignupForm onSignup={handleSignup} isSubmitting={isSubmitting} error={formError} />
-        )}
+        <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={loginError} />
       </main>
     );
   }
 
   return (
     <main>
-      <p>{mode === "login" ? "Please log in" : "Create your account"}</p>
-      {mode === "login" ? (
-        <>
-          <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={formError} />
-          <button type="button" onClick={() => setMode("signup")}>
-            Create account
-          </button>
-        </>
-      ) : (
-        <>
-          <SignupForm onSignup={handleSignup} isSubmitting={isSubmitting} error={formError} />
-          <button type="button" onClick={() => setMode("login")}>
-            Back to log in
-          </button>
-        </>
-      )}
+      <p>Please log in</p>
+      <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={loginError} />
     </main>
   );
 }

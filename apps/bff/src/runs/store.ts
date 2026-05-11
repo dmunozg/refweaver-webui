@@ -1,10 +1,46 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray } from "drizzle-orm";
 import { analysisRuns } from "@refweaver/db";
 import type { Database } from "@refweaver/db";
-import type { RunCreateInput, RunRecord, RunStore } from "./types";
+import {
+  TERMINAL_RUN_STATUSES,
+  type RunCreateInput,
+  type RunRecord,
+  type RunStore,
+  type RunStatusGroup
+} from "./types";
+
+const TERMINAL_RUN_STATUS_SET = new Set<string>(TERMINAL_RUN_STATUSES);
 
 function castRuns(rows: Array<Record<string, unknown>>): RunRecord[] {
   return rows as RunRecord[];
+}
+
+function isTerminalRunStatus(status: string): boolean {
+  return TERMINAL_RUN_STATUS_SET.has(status);
+}
+
+function buildStatusGroupCondition(statusGroup: RunStatusGroup) {
+  if (statusGroup === "terminal") {
+    return inArray(analysisRuns.status, [...TERMINAL_RUN_STATUSES]);
+  }
+
+  if (statusGroup === "in_progress") {
+    return notInArray(analysisRuns.status, [...TERMINAL_RUN_STATUSES]);
+  }
+
+  return undefined;
+}
+
+function filterRunsByStatusGroup(runs: RunRecord[], statusGroup: RunStatusGroup): RunRecord[] {
+  if (statusGroup === "terminal") {
+    return runs.filter((run) => isTerminalRunStatus(run.status));
+  }
+
+  if (statusGroup === "in_progress") {
+    return runs.filter((run) => !isTerminalRunStatus(run.status));
+  }
+
+  return runs;
 }
 
 export function createRunStore(db: Database): RunStore {
@@ -16,6 +52,7 @@ export function createRunStore(db: Database): RunStore {
           .values({
             projectId: input.projectId,
             userId: input.userId,
+            title: input.title,
             inputText: input.text,
             status: input.status,
             refweaverRunId: input.refweaverRunId,
@@ -26,13 +63,20 @@ export function createRunStore(db: Database): RunStore {
       return row;
     },
 
-    async listRuns(userId: string, projectId: string) {
-      const rows = await db
-        .select()
-        .from(analysisRuns)
-        .where(and(eq(analysisRuns.userId, userId), eq(analysisRuns.projectId, projectId)))
-        .orderBy(desc(analysisRuns.createdAt));
-      return castRuns(rows);
+    async listRuns(
+      userId: string,
+      projectId: string,
+      pagination?: { limit: number; offset: number; statusGroup?: RunStatusGroup }
+    ) {
+      const statusCondition = buildStatusGroupCondition(pagination?.statusGroup ?? "all");
+      const whereCondition = statusCondition
+        ? and(eq(analysisRuns.userId, userId), eq(analysisRuns.projectId, projectId), statusCondition)
+        : and(eq(analysisRuns.userId, userId), eq(analysisRuns.projectId, projectId));
+
+      const query = db.select().from(analysisRuns).where(whereCondition).orderBy(desc(analysisRuns.createdAt));
+      const rows = pagination ? await query.limit(pagination.limit).offset(pagination.offset) : await query;
+
+      return filterRunsByStatusGroup(castRuns(rows), pagination?.statusGroup ?? "all");
     },
 
     async getRunById(userId: string, projectId: string, runId: string) {

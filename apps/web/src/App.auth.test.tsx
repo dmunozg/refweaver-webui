@@ -1,131 +1,264 @@
 import TestRenderer, { act } from "react-test-renderer";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("./auth/client", () => ({
-  authClient: {
-    useSession: vi.fn(),
-    signIn: { email: vi.fn() },
-    signUp: { email: vi.fn() },
-    signOut: vi.fn()
-  }
+vi.mock("./auth/use-auth", () => ({
+  useAuth: vi.fn()
 }));
 
-import { authClient } from "./auth/client";
+import { useAuth } from "./auth/use-auth";
 import { App } from "./App";
+import * as api from "./analysis/api";
+import * as polling from "./analysis/polling";
 import { LoginForm } from "./auth/LoginForm";
+import { analysisRoutes } from "./navigation/routes";
+import { installMockWindow } from "./navigation/test-window";
+import * as projectModule from "./projects/use-default-project";
 
-type SessionState = {
-  isPending: boolean;
-  data: { user: Record<string, unknown> } | null;
-  error: Error | null;
-  refetch: () => Promise<void>;
-};
-
-function makeSession(overrides: Partial<SessionState>): SessionState {
-  return {
-    isPending: false,
-    data: null,
-    error: null,
-    refetch: async () => {},
-    ...overrides
-  };
-}
-
-function setSession(session: SessionState) {
-  (authClient.useSession as ReturnType<typeof vi.fn>).mockReturnValue(session);
-}
-
-function authenticatedUser() {
-  return {
-    id: "user-1",
-    username: "ada",
-    email: "ada@example.com",
-    name: "Ada",
-    adminRole: "admin",
-    projectId: "project-1"
-  };
-}
+const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
+const mockedCreateRun = vi.spyOn(api, "createRun");
+const mockedGetRun = vi.spyOn(api, "getRun");
+const mockedListRuns = vi.spyOn(api, "listRuns");
+const mockedPollAnalysisRun = vi.spyOn(polling, "pollAnalysisRun");
+const mockedUseDefaultProject = vi.spyOn(projectModule, "useDefaultProject");
 
 afterEach(() => {
+  delete (globalThis as any).window;
   vi.resetAllMocks();
 });
 
-describe("App auth flows", () => {
-  it("unauthenticated user sees login/signup shell", () => {
-    setSession(makeSession({ data: null }));
-
-    let renderer: TestRenderer.ReactTestRenderer;
-    act(() => {
-      renderer = TestRenderer.create(<App />);
-    });
-    const text = JSON.stringify(renderer!.toJSON());
-    expect(text).toContain("Please log in");
+beforeEach(() => {
+  installMockWindow("/");
+  mockedUseDefaultProject.mockReturnValue({ status: "ready", projectId: "project-1" });
+  mockedGetRun.mockResolvedValue({
+    run: {
+      id: "run-1",
+      projectId: "project-1",
+      userId: "user-1",
+      title: "Detail run",
+      inputText: "hello world",
+      status: "finished",
+      refweaverRunId: null,
+      refweaverJobId: null,
+      createdAt: "2026-03-25T10:00:00.000Z",
+      updatedAt: "2026-03-25T10:05:00.000Z"
+    }
+  } as never);
+  mockedListRuns.mockResolvedValue({
+    runs: [],
+    pagination: { page: 1, pageSize: 10, hasNext: false, hasPrevious: false }
   });
-
-  it("authenticated user sees main app shell", () => {
-    setSession(makeSession({ data: { user: authenticatedUser() } }));
-
-    let renderer: TestRenderer.ReactTestRenderer;
-    act(() => {
-      renderer = TestRenderer.create(<App />);
-    });
-    const text = JSON.stringify(renderer!.toJSON());
-
-    expect(text).toContain("Welcome");
-    expect(text).toContain("ada");
-    expect(text).toContain("Log out");
-  });
-
-  it("logout redirects to login shell", async () => {
-    const session = makeSession({ data: { user: authenticatedUser() } });
-    (authClient.signOut as ReturnType<typeof vi.fn>).mockResolvedValue({ error: null });
-    session.refetch = vi.fn(async () => {
-      session.data = null;
-    });
-    setSession(session);
-
-    let renderer: TestRenderer.ReactTestRenderer;
-    await act(async () => {
-      renderer = TestRenderer.create(<App />);
-    });
-
-    const textBefore = JSON.stringify(renderer!.toJSON());
-    expect(textBefore).toContain("Welcome");
-
-    const logoutButton = renderer!.root.findByType("button");
-    await act(async () => {
-      await logoutButton.props.onClick();
-    });
-
-    await act(async () => {
-      renderer!.update(<App />);
-    });
-
-    const textAfter = JSON.stringify(renderer!.toJSON());
-    expect(textAfter).toContain("Please log in");
-    expect(textAfter).not.toContain("Welcome");
-  });
+  mockedPollAnalysisRun.mockImplementation(async (_projectId, run) => run);
+  mockedCreateRun.mockResolvedValue({ run: { id: "run-1" } } as never);
 });
 
 describe("App auth shell", () => {
-  it("renders authenticated shell when user is authenticated", () => {
-    setSession(makeSession({ data: { user: authenticatedUser() } }));
+  function authenticatedState() {
+    return {
+      status: "authenticated" as const,
+      user: {
+        id: "user-1",
+        username: "ada",
+        email: "ada@example.com",
+        name: "Ada",
+        teamId: null
+      },
+      error: null
+    };
+  }
+
+  it("renders authenticated shell when user is authenticated", async () => {
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
 
     let renderer: TestRenderer.ReactTestRenderer;
-    act(() => {
+    await act(async () => {
       renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
     });
     const text = JSON.stringify(renderer!.toJSON());
 
     expect(text).toContain("Welcome");
-    expect(text).toContain("ada");
+    expect(text).toContain("Ada");
     expect(text).toContain("Log out");
   });
 
+  it("shows analysis navigation and swaps shell content when the route changes", async () => {
+    window.history.replaceState({}, "", analysisRoutes.dashboard);
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(renderer!.root.findByType("h1").props.children).toBe("Dashboard");
+    expect(JSON.stringify(renderer!.toJSON())).toContain("Start a new analysis");
+
+    const newAnalysisButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "New analysis");
+
+    expect(newAnalysisButton).toBeDefined();
+
+    act(() => {
+      newAnalysisButton?.props.onClick();
+    });
+
+    expect(window.location.pathname).toBe(analysisRoutes.new);
+    expect(renderer!.root.findByType("h1").props.children).toBe("New analysis");
+
+    const listButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Analysis list");
+
+    expect(listButton).toBeDefined();
+
+    await act(async () => {
+      listButton?.props.onClick();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(window.location.pathname).toBe(analysisRoutes.list);
+    expect(renderer!.root.findByType("h1").props.children).toBe("Analysis list");
+  });
+
+  it("routes from dashboard View all to the analysis list", async () => {
+    window.history.replaceState({}, "", analysisRoutes.dashboard);
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const viewAllButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "View all");
+
+    expect(viewAllButton).toBeDefined();
+
+    act(() => {
+      viewAllButton?.props.onClick();
+    });
+
+    expect(window.location.pathname).toBe(analysisRoutes.list);
+    expect(renderer!.root.findByType("h1").props.children).toBe("Analysis list");
+  });
+
+  it("renders the analysis detail route", async () => {
+    window.history.replaceState({}, "", analysisRoutes.detail("run-1"));
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(renderer!.root.findByType("h1").props.children).toBe("Analysis detail");
+    expect(JSON.stringify(renderer!.toJSON())).toContain("Detail run");
+  });
+
+  it("returns to the dashboard after a new analysis is submitted successfully", async () => {
+    window.history.replaceState({}, "", analysisRoutes.new);
+
+    let resolveRun: ((value: any) => void) | undefined;
+    mockedCreateRun.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRun = resolve;
+        })
+    );
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(renderer!.root.findByType("h1").props.children).toBe("New analysis");
+
+    const titleInput = renderer!.root.findAllByType("input")[0]!;
+    const textArea = renderer!.root.findByType("textarea");
+    const form = renderer!.root.findByType("form");
+
+    await act(async () => {
+      titleInput.props.onChange({ target: { value: "Draft analysis" } });
+    });
+
+    await act(async () => {
+      textArea.props.onChange({ target: { value: "  hello world  " } });
+    });
+
+    await act(async () => {
+      void form.props.onSubmit({ preventDefault() {} });
+    });
+
+    expect(mockedCreateRun).toHaveBeenCalledWith("project-1", {
+      text: "hello world",
+      title: "Draft analysis"
+    });
+    expect(window.location.pathname).toBe(analysisRoutes.new);
+
+    await act(async () => {
+      resolveRun?.({ run: { id: "run-1" } });
+      await Promise.resolve();
+    });
+
+    expect(window.location.pathname).toBe(analysisRoutes.dashboard);
+    expect(renderer!.root.findByType("h1").props.children).toBe("Dashboard");
+  });
+
   it("renders signed-out shell when session is missing", () => {
-    setSession(makeSession({ data: null }));
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
 
     let renderer: TestRenderer.ReactTestRenderer;
     act(() => {
@@ -137,14 +270,23 @@ describe("App auth shell", () => {
 
   it("prevents duplicate login submissions while request is in flight", async () => {
     let resolveLogin: (() => void) | undefined;
-    (authClient.signIn.email as ReturnType<typeof vi.fn>).mockImplementation(
+    const login = vi.fn(
       () =>
-        new Promise((resolve) => {
-          resolveLogin = () => resolve({ error: null });
+        new Promise<void>((resolve) => {
+          resolveLogin = resolve;
         })
     );
-    const refetch = vi.fn(async () => {});
-    setSession(makeSession({ data: null, refetch }));
+
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login,
+      logout: async () => {}
+    });
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
@@ -158,7 +300,7 @@ describe("App auth shell", () => {
       void loginForm.props.onLogin("ada", "safe-pass");
     });
 
-    expect(authClient.signIn.email).toHaveBeenCalledTimes(1);
+    expect(login).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       resolveLogin?.();
@@ -167,56 +309,75 @@ describe("App auth shell", () => {
   });
 
   it("shows visible error when logout fails", async () => {
-    (authClient.signOut as ReturnType<typeof vi.fn>).mockResolvedValue({
-      error: new Error("server")
+    const logout = vi.fn(async () => {
+      throw new Error("server");
     });
-    setSession(makeSession({ data: { user: authenticatedUser() } }));
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout
+    });
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = TestRenderer.create(<App />);
     });
-    const logoutButton = renderer!.root.findByType("button");
+    const logoutButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Log out");
+
+    expect(logoutButton).toBeDefined();
 
     await act(async () => {
-      await logoutButton.props.onClick();
+      await logoutButton?.props.onClick();
     });
 
-    expect(authClient.signOut).toHaveBeenCalledTimes(1);
+    expect(logout).toHaveBeenCalledTimes(1);
     const text = JSON.stringify(renderer!.toJSON());
     expect(text).toContain("Could not log out. Please try again.");
   });
 
   it("prevents duplicate logout submissions while request is in flight", async () => {
     let resolveLogout: (() => void) | undefined;
-    (authClient.signOut as ReturnType<typeof vi.fn>).mockImplementation(
+    const logout = vi.fn(
       () =>
-        new Promise((resolve) => {
-          resolveLogout = () => resolve({ error: null });
+        new Promise<void>((resolve) => {
+          resolveLogout = resolve;
         })
     );
-    setSession(makeSession({ data: { user: authenticatedUser() } }));
+
+    mockedUseAuth.mockReturnValue({
+      state: authenticatedState(),
+      refresh: async () => {},
+      login: async () => {},
+      logout
+    });
 
     let renderer: TestRenderer.ReactTestRenderer;
     await act(async () => {
       renderer = TestRenderer.create(<App />);
     });
 
-    const logoutButton = renderer!.root.findByType("button");
+    const logoutButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Log out");
+
+    expect(logoutButton).toBeDefined();
 
     await act(async () => {
-      logoutButton.props.onClick();
-      logoutButton.props.onClick();
+      logoutButton?.props.onClick();
+      logoutButton?.props.onClick();
     });
 
-    expect(authClient.signOut).toHaveBeenCalledTimes(1);
-    expect(renderer!.root.findByType("button").props.disabled).toBe(true);
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(logoutButton?.props.disabled).toBe(true);
 
     await act(async () => {
       resolveLogout?.();
-      await Promise.resolve();
     });
 
-    expect(renderer!.root.findByType("button").props.disabled).toBe(false);
+    expect(logoutButton?.props.disabled).toBe(false);
   });
 });

@@ -1,5 +1,13 @@
 import { ProjectNotFoundError } from "../projects/service";
-import type { RunRecord, ProjectLookup, RefweaverClient, RunStore } from "./types";
+import { RefweaverHttpError } from "../refweaver/errors";
+import type {
+  RunRecord,
+  ProjectLookup,
+  RefweaverClient,
+  RunStore,
+  RunDetailResponse,
+  RunStatusGroup
+} from "./types";
 
 export class ProjectInactiveError extends Error {
   constructor() {
@@ -28,6 +36,22 @@ type RunServiceDeps = {
   projects: ProjectLookup;
 };
 
+function normalizeTitle(title?: string | null): string | null {
+  if (title == null) {
+    return null;
+  }
+
+  const normalized = title.trim();
+  if (!normalized) {
+    return null;
+  }
+  if (normalized.length > 120) {
+    throw new RunValidationError("Run title must be 120 characters or fewer");
+  }
+
+  return normalized;
+}
+
 async function assertActiveProject(projects: ProjectLookup, userId: string, projectId: string) {
   const project = await projects.getProject(userId, projectId);
   if (!project) {
@@ -40,13 +64,20 @@ async function assertActiveProject(projects: ProjectLookup, userId: string, proj
 
 export function createRunService(deps: RunServiceDeps) {
   return {
-    async submitRun(userId: string, projectId: string, text: string): Promise<RunRecord> {
+    async submitRun(
+      userId: string,
+      projectId: string,
+      text: string,
+      title?: string | null
+    ): Promise<RunRecord> {
       await assertActiveProject(deps.projects, userId, projectId);
 
       const normalizedText = text.trim();
       if (!normalizedText) {
         throw new RunValidationError("Run text is required");
       }
+
+      const normalizedTitle = normalizeTitle(title);
 
       const analyze = await deps.refweaver.analyze(userId, {
         text: normalizedText,
@@ -55,6 +86,7 @@ export function createRunService(deps: RunServiceDeps) {
       return deps.store.createRun({
         projectId,
         userId,
+        title: normalizedTitle,
         text: normalizedText,
         status: analyze.status,
         refweaverRunId: analyze.runId,
@@ -62,18 +94,32 @@ export function createRunService(deps: RunServiceDeps) {
       });
     },
 
-    async listRuns(userId: string, projectId: string): Promise<RunRecord[]> {
+    async listRuns(
+      userId: string,
+      projectId: string,
+      pagination?: { limit: number; offset: number; statusGroup?: RunStatusGroup }
+    ): Promise<RunRecord[]> {
       await assertActiveProject(deps.projects, userId, projectId);
-      return deps.store.listRuns(userId, projectId);
+      return deps.store.listRuns(userId, projectId, pagination);
     },
 
-    async getRun(userId: string, projectId: string, runId: string): Promise<RunRecord> {
+    async getRun(userId: string, projectId: string, runId: string): Promise<RunDetailResponse> {
       await assertActiveProject(deps.projects, userId, projectId);
       const run = await deps.store.getRunById(userId, projectId, runId);
       if (!run) {
         throw new RunNotFoundError();
       }
-      return run;
+
+      if (run.status !== "finished" || !run.refweaverRunId) {
+        return { run };
+      }
+
+      try {
+        const upstreamRun = await deps.refweaver.getRun(userId, run.refweaverRunId);
+        return { run, upstreamRun };
+      } catch {
+        return { run };
+      }
     },
 
     async pollJob(
@@ -88,7 +134,23 @@ export function createRunService(deps: RunServiceDeps) {
         throw new RunNotFoundError();
       }
 
-      const job = await deps.refweaver.getJob(userId, jobId);
+      let job;
+      try {
+        job = await deps.refweaver.getJob(userId, jobId);
+      } catch (error) {
+        if (error instanceof RefweaverHttpError && error.status === 404) {
+          const updated = await deps.store.updateRunStatus(local.id, "missing", local.refweaverRunId);
+          if (!updated) {
+            throw new RunNotFoundError();
+          }
+          return {
+            status: "missing",
+            run: updated
+          };
+        }
+
+        throw error;
+      }
       if (job.userId !== userId) {
         throw new RunNotFoundError();
       }

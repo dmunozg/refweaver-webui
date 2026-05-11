@@ -1,106 +1,156 @@
 import type { Hono } from "hono";
-import type { BetterAuthApp } from "../auth/better-auth";
 import { requireAuth } from "../middleware/require-auth";
 import { toErrorResponse } from "../http/errors";
 import { isUuid } from "../http/validation";
 import type { createRunService } from "../runs/service";
-import type { AuthVariables } from "../app";
 
 type RunService = ReturnType<typeof createRunService>;
+type AuthStore = Parameters<typeof requireAuth>[0];
 
-type AuthStore = BetterAuthApp;
+type RunRouteContext = {
+  get(name: "authUser"): unknown;
+    req: {
+      param(name: "projectId" | "runId" | "jobId"): string;
+      query(name: "page" | "page_size" | "status_group"): string | undefined;
+      json(): Promise<unknown>;
+    };
+  json(body: unknown, status?: number): Response;
+};
 
-// Typed status code constants — avoids repetitive `as const` casts on literals
-const S = {
-  OK: 200,
-  ACCEPTED: 202,
-  UNPROCESSABLE: 422,
-} as const;
-
-function getAuthUser(c: import("hono").Context<{ Variables: AuthVariables }>): { id: string } {
-  return c.get("authUser");
+function getAuthUser(c: RunRouteContext): { id: string } {
+  return c.get("authUser") as { id: string };
 }
 
-export function registerRunRoutes(app: Hono<{ Variables: AuthVariables }>, authStore: AuthStore, runService: RunService): void {
-  app.post("/projects/:projectId/runs", requireAuth(authStore), async (c) => {
-    const u = getAuthUser(c);
+function parseBoundedInt(value: string | undefined, fallback: number, min: number, max: number): number | null {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+    return null;
+  }
+
+  return parsed;
+}
+
+export function registerRunRoutes(app: Hono, authStore: AuthStore, runService: RunService): void {
+  app.post("/projects/:projectId/runs", requireAuth(authStore), async (c: RunRouteContext) => {
+    const authUser = getAuthUser(c);
     const projectId = c.req.param("projectId");
     if (!isUuid(projectId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
     }
+
     let body: unknown;
     try {
       body = await c.req.json();
     } catch {
-      return c.json({ error: { code: "validation_error", message: "Invalid JSON payload" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Invalid JSON payload" } }, 422);
     }
 
-    const input = body as { text?: unknown };
+    const input = body as { text?: unknown; title?: unknown };
     if (typeof input.text !== "string") {
-      return c.json({ error: { code: "validation_error", message: "Run text is required" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Run text is required" } }, 422);
+    }
+    if (input.title !== undefined && typeof input.title !== "string") {
+      return c.json({ error: { code: "validation_error", message: "Run title must be a string" } }, 422);
     }
 
     const text = input.text.trim();
     if (!text) {
-      return c.json({ error: { code: "validation_error", message: "Run text is required" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Run text is required" } }, 422);
     }
 
     try {
-      const run = await runService.submitRun(u.id, projectId, text);
-      return c.json({ run }, S.ACCEPTED);
+      const run = await runService.submitRun(authUser.id, projectId, text, input.title);
+      return c.json({ run }, 202);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);
     }
   });
 
-  app.get("/projects/:projectId/runs", requireAuth(authStore), async (c) => {
-    const u = getAuthUser(c);
+  app.get("/projects/:projectId/runs", requireAuth(authStore), async (c: RunRouteContext) => {
+    const authUser = getAuthUser(c);
     const projectId = c.req.param("projectId");
     if (!isUuid(projectId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
     }
+
+    const page = parseBoundedInt(c.req.query("page"), 1, 1, 10_000);
+    if (page === null) {
+      return c.json({ error: { code: "validation_error", message: "Invalid page" } }, 422);
+    }
+
+    const pageSize = parseBoundedInt(c.req.query("page_size"), 10, 1, 100);
+    if (pageSize === null) {
+      return c.json({ error: { code: "validation_error", message: "Invalid page size" } }, 422);
+    }
+
+    const statusGroup = c.req.query("status_group") ?? "all";
+    if (statusGroup !== "all" && statusGroup !== "terminal" && statusGroup !== "in_progress") {
+      return c.json({ error: { code: "validation_error", message: "Invalid status group" } }, 422);
+    }
+
     try {
-      const runs = await runService.listRuns(u.id, projectId);
-      return c.json({ runs }, S.OK);
+      const requestedLimit = pageSize + 1;
+      const runs = await runService.listRuns(authUser.id, projectId, {
+        limit: requestedLimit,
+        offset: (page - 1) * pageSize,
+        statusGroup
+      });
+      const hasNext = runs.length > pageSize;
+      return c.json(
+        {
+          runs: hasNext ? runs.slice(0, pageSize) : runs,
+          pagination: {
+            page,
+            pageSize,
+            hasNext,
+            hasPrevious: page > 1
+          }
+        },
+        200
+      );
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);
     }
   });
 
-  app.get("/projects/:projectId/runs/:runId", requireAuth(authStore), async (c) => {
-    const u = getAuthUser(c);
+  app.get("/projects/:projectId/runs/:runId", requireAuth(authStore), async (c: RunRouteContext) => {
+    const authUser = getAuthUser(c);
     const projectId = c.req.param("projectId");
     const runId = c.req.param("runId");
     if (!isUuid(projectId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
     }
     if (!isUuid(runId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid run id" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Invalid run id" } }, 422);
     }
     try {
-      const run = await runService.getRun(u.id, projectId, runId);
-      return c.json({ run }, S.OK);
+      const run = await runService.getRun(authUser.id, projectId, runId);
+      return c.json(run, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);
     }
   });
 
-  app.get("/projects/:projectId/jobs/:jobId", requireAuth(authStore), async (c) => {
-    const u = getAuthUser(c);
+  app.get("/projects/:projectId/jobs/:jobId", requireAuth(authStore), async (c: RunRouteContext) => {
+    const authUser = getAuthUser(c);
     const projectId = c.req.param("projectId");
     const jobId = c.req.param("jobId");
     if (!isUuid(projectId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Invalid project id" } }, 422);
     }
     if (!isUuid(jobId)) {
-      return c.json({ error: { code: "validation_error", message: "Invalid job id" } }, S.UNPROCESSABLE);
+      return c.json({ error: { code: "validation_error", message: "Invalid job id" } }, 422);
     }
     try {
-      const result = await runService.pollJob(u.id, projectId, jobId);
-      return c.json(result, S.OK);
+      const result = await runService.pollJob(authUser.id, projectId, jobId);
+      return c.json(result, 200);
     } catch (error) {
       const mapped = toErrorResponse(error);
       return c.json(mapped.body, mapped.status);

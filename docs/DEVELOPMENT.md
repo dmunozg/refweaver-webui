@@ -67,6 +67,8 @@ Generate migrations from schema:
 DATABASE_URL="postgres://postgres:postgres@localhost:5432/refweaver_webui" bun run --filter @refweaver/db drizzle:generate
 ```
 
+Forward-only compatibility note: `analysis_runs.title` was added in a new forward migration (`0002_analysis_runs_title.sql`) so existing databases can move forward without rewriting `0001_little_daimon_hellstrom.sql`.
+
 ## Run Apps
 
 Run BFF:
@@ -79,6 +81,16 @@ Milestone 3 BFF routes include:
 - Project lifecycle: `POST/GET/PATCH/DELETE /projects` and `POST /projects/:projectId/restore`
 - Run lifecycle: `POST /projects/:projectId/runs`, `GET /projects/:projectId/runs`,
   `GET /projects/:projectId/runs/:runId`, and `GET /projects/:projectId/jobs/:jobId`
+
+Milestone 4 WebUI routes:
+- Dashboard: `/dashboard`
+- New analysis: `/analyses/new`
+- Analysis list: `/analyses` (paginated, 10 per page)
+- Analysis detail: `/analyses/:runId`
+
+Milestone 4 analysis submission rules:
+- Title is optional and saved as `(no title)` in the UI when blank
+- Text is required and trimmed before submit
 
 Run Web app:
 

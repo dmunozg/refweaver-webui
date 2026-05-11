@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS "analysis_runs" (
 	"project_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"input_text" text NOT NULL,
+	"title" text,
 	"status" text NOT NULL,
 	"refweaver_run_id" text,
 	"refweaver_job_id" text,

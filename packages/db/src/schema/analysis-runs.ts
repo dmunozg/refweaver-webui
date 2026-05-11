@@ -14,6 +14,7 @@ export const analysisRuns = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     inputText: text("input_text").notNull(),
+    title: text("title"),
     status: text("status").notNull(),
     refweaverRunId: text("refweaver_run_id"),
     refweaverJobId: text("refweaver_job_id"),
