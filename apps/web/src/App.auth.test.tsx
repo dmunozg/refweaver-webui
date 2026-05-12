@@ -3,11 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("./auth/use-auth", () => ({
-  useAuth: vi.fn()
-}));
-
-import { useAuth } from "./auth/use-auth";
+import * as useAuthModule from "./auth/use-auth";
 import { App } from "./App";
 import * as api from "./analysis/api";
 import * as polling from "./analysis/polling";
@@ -16,7 +12,7 @@ import { analysisRoutes } from "./navigation/routes";
 import { installMockWindow } from "./navigation/test-window";
 import * as projectModule from "./projects/use-default-project";
 
-const mockedUseAuth = useAuth as unknown as ReturnType<typeof vi.fn>;
+let mockedUseAuth: ReturnType<typeof vi.fn>;
 const mockedCreateRun = vi.spyOn(api, "createRun");
 const mockedGetRun = vi.spyOn(api, "getRun");
 const mockedListRuns = vi.spyOn(api, "listRuns");
@@ -25,10 +21,12 @@ const mockedUseDefaultProject = vi.spyOn(projectModule, "useDefaultProject");
 
 afterEach(() => {
   delete (globalThis as any).window;
+  mockedUseAuth.mockRestore();
   vi.resetAllMocks();
 });
 
 beforeEach(() => {
+  mockedUseAuth = vi.spyOn(useAuthModule, "useAuth") as unknown as ReturnType<typeof vi.fn>;
   installMockWindow("/");
   mockedUseDefaultProject.mockReturnValue({ status: "ready", projectId: "project-1" });
   mockedGetRun.mockResolvedValue({
