@@ -51,7 +51,6 @@ export function App() {
     setIsSubmitting(true);
     try {
       await signup(input);
-      setAuthMode("login");
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Signup failed. Please try again.");
     } finally {
@@ -135,7 +134,7 @@ export function App() {
         ) : (
           <>
             <SignupForm onSignup={handleSignup} isSubmitting={isSubmitting} error={loginError} />
-            <button type="button" onClick={() => setAuthMode("login")}>
+            <button type="button" onClick={() => { setLoginError(null); setAuthMode("login"); }}>
               Back to log in
             </button>
           </>
@@ -158,7 +157,7 @@ export function App() {
         <>
           <p>Create your account</p>
           <SignupForm onSignup={handleSignup} isSubmitting={isSubmitting} error={loginError} />
-          <button type="button" onClick={() => setAuthMode("login")}>
+          <button type="button" onClick={() => { setLoginError(null); setAuthMode("login"); }}>
             Back to log in
           </button>
         </>

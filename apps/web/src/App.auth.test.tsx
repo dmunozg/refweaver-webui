@@ -534,4 +534,183 @@ describe("App auth shell", () => {
 
     expect(() => renderer!.root.findByType(LoginForm)).toThrow();
   });
+
+  it("calls signup with correct payload", async () => {
+    const signup = vi.fn(async () => {});
+
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      signup,
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const createAccountButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Create account");
+
+    await act(async () => {
+      createAccountButton?.props.onClick();
+    });
+
+    const signupForm = renderer!.root.findByType(SignupForm);
+
+    const payload = { email: "test@example.com", password: "safe-pass", name: "Test User" };
+    await act(async () => {
+      signupForm.props.onSignup(payload);
+    });
+
+    expect(signup).toHaveBeenCalledTimes(1);
+    expect(signup).toHaveBeenCalledWith(payload);
+  });
+
+  it("prevents duplicate signup submissions while request is in flight", async () => {
+    let resolveSignup: (() => void) | undefined;
+    const signup = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSignup = resolve;
+        })
+    );
+
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      signup,
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const createAccountButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Create account");
+
+    await act(async () => {
+      createAccountButton?.props.onClick();
+    });
+
+    const signupForm = renderer!.root.findByType(SignupForm);
+
+    await act(async () => {
+      signupForm.props.onSignup({ email: "test@example.com", password: "safe-pass", name: "Test User" });
+      signupForm.props.onSignup({ email: "test@example.com", password: "safe-pass", name: "Test User" });
+    });
+
+    expect(signup).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveSignup?.();
+      await Promise.resolve();
+    });
+  });
+
+  it("renders signup error when signup fails", async () => {
+    const signup = vi.fn(async () => {
+      throw new Error("Email already in use");
+    });
+
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      signup,
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const createAccountButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Create account");
+
+    await act(async () => {
+      createAccountButton?.props.onClick();
+    });
+
+    const signupForm = renderer!.root.findByType(SignupForm);
+
+    await act(async () => {
+      signupForm.props.onSignup({ email: "test@example.com", password: "safe-pass", name: "Test User" });
+    });
+
+    const text = JSON.stringify(renderer!.toJSON());
+    expect(text).toContain("Email already in use");
+  });
+
+  it("clears signup error when switching to login mode", async () => {
+    const signup = vi.fn(async () => {
+      throw new Error("Signup failed");
+    });
+
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      signup,
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const createAccountButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Create account");
+
+    await act(async () => {
+      createAccountButton?.props.onClick();
+    });
+
+    const signupForm = renderer!.root.findByType(SignupForm);
+
+    await act(async () => {
+      signupForm.props.onSignup({ email: "test@example.com", password: "safe-pass", name: "Test User" });
+    });
+
+    let text = JSON.stringify(renderer!.toJSON());
+    expect(text).toContain("Signup failed");
+
+    const backButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Back to log in");
+
+    await act(async () => {
+      backButton?.props.onClick();
+    });
+
+    const loginForm = renderer!.root.findByType(LoginForm);
+    expect(loginForm.props.error).toBeNull();
+  });
 });
