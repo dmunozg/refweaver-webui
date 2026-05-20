@@ -127,7 +127,7 @@ export function App() {
         {authMode === "login" ? (
           <>
             <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={loginError} />
-            <button type="button" onClick={() => setAuthMode("signup")}>
+            <button type="button" onClick={() => { setLoginError(null); setAuthMode("signup"); }}>
               Create account
             </button>
           </>
@@ -149,7 +149,7 @@ export function App() {
         <>
           <p>Please log in</p>
           <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={loginError} />
-          <button type="button" onClick={() => setAuthMode("signup")}>
+          <button type="button" onClick={() => { setLoginError(null); setAuthMode("signup"); }}>
             Create account
           </button>
         </>

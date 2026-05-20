@@ -713,4 +713,46 @@ describe("App auth shell", () => {
     const loginForm = renderer!.root.findByType(LoginForm);
     expect(loginForm.props.error).toBeNull();
   });
+
+  it("clears login error when switching to signup mode", async () => {
+    const login = vi.fn(async () => {
+      throw new Error("Invalid credentials");
+    });
+
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login,
+      signup: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const loginForm = renderer!.root.findByType(LoginForm);
+    await act(async () => {
+      loginForm.props.onLogin("ada@example.com", "wrong-pass");
+    });
+
+    let text = JSON.stringify(renderer!.toJSON());
+    expect(text).toContain("Invalid credentials");
+
+    const createAccountButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Create account");
+
+    await act(async () => {
+      createAccountButton?.props.onClick();
+    });
+
+    const signupForm = renderer!.root.findByType(SignupForm);
+    expect(signupForm.props.error).toBeNull();
+  });
 });
