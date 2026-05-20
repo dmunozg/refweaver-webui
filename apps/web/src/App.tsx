@@ -1,6 +1,7 @@
 import { useAuth } from "./auth/use-auth";
 import { useRef, useState } from "react";
 import { LoginForm } from "./auth/LoginForm";
+import { SignupForm } from "./auth/SignupForm";
 import { DashboardView } from "./analysis/DashboardView";
 import { AnalysisListView } from "./analysis/AnalysisListView";
 import { AnalysisDetailView } from "./analysis/AnalysisDetailView";
@@ -9,7 +10,7 @@ import { AnalysisRouteView } from "./navigation/AnalysisRouteView";
 import { useRoute } from "./navigation/use-route";
 
 export function App() {
-  const { state, login, logout } = useAuth();
+  const { state, login, logout, signup } = useAuth();
   const { route, navigate } = useRoute();
   const [loginError, setLoginError] = useState<string | null>(null);
   const [sessionError, setSessionError] = useState<string | null>(null);
@@ -17,6 +18,7 @@ export function App() {
   const loginInFlightRef = useRef(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const logoutInFlightRef = useRef(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
 
   async function handleLogin(identifier: string, password: string) {
     if (loginInFlightRef.current) {
@@ -29,8 +31,29 @@ export function App() {
     setIsSubmitting(true);
     try {
       await login(identifier, password);
+      setAuthMode("login");
     } catch (error) {
       setLoginError(error instanceof Error ? error.message : "Login failed. Please try again.");
+    } finally {
+      loginInFlightRef.current = false;
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSignup(input: { email: string; password: string; name: string; username?: string }) {
+    if (loginInFlightRef.current) {
+      return;
+    }
+
+    loginInFlightRef.current = true;
+    setLoginError(null);
+    setSessionError(null);
+    setIsSubmitting(true);
+    try {
+      await signup(input);
+      setAuthMode("login");
+    } catch (error) {
+      setLoginError(error instanceof Error ? error.message : "Signup failed. Please try again.");
     } finally {
       loginInFlightRef.current = false;
       setIsSubmitting(false);
@@ -102,15 +125,44 @@ export function App() {
     return (
       <main>
         <p>{state.error}</p>
-        <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={loginError} />
+        {authMode === "login" ? (
+          <>
+            <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={loginError} />
+            <button type="button" onClick={() => setAuthMode("signup")}>
+              Create account
+            </button>
+          </>
+        ) : (
+          <>
+            <SignupForm onSignup={handleSignup} isSubmitting={isSubmitting} error={loginError} />
+            <button type="button" onClick={() => setAuthMode("login")}>
+              Back to log in
+            </button>
+          </>
+        )}
       </main>
     );
   }
 
   return (
     <main>
-      <p>Please log in</p>
-      <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={loginError} />
+      {authMode === "login" ? (
+        <>
+          <p>Please log in</p>
+          <LoginForm onLogin={handleLogin} isSubmitting={isSubmitting} error={loginError} />
+          <button type="button" onClick={() => setAuthMode("signup")}>
+            Create account
+          </button>
+        </>
+      ) : (
+        <>
+          <p>Create your account</p>
+          <SignupForm onSignup={handleSignup} isSubmitting={isSubmitting} error={loginError} />
+          <button type="button" onClick={() => setAuthMode("login")}>
+            Back to log in
+          </button>
+        </>
+      )}
     </main>
   );
 }

@@ -8,6 +8,7 @@ import { App } from "./App";
 import * as api from "./analysis/api";
 import * as polling from "./analysis/polling";
 import { LoginForm } from "./auth/LoginForm";
+import { SignupForm } from "./auth/SignupForm";
 import { analysisRoutes } from "./navigation/routes";
 import { installMockWindow } from "./navigation/test-window";
 import * as projectModule from "./projects/use-default-project";
@@ -377,5 +378,160 @@ describe("App auth shell", () => {
     });
 
     expect(logoutButton?.props.disabled).toBe(false);
+  });
+
+  it("renders LoginForm by default in signed-out state", () => {
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const loginForm = renderer!.root.findByType(LoginForm);
+    expect(loginForm).toBeDefined();
+
+    expect(() => renderer!.root.findByType(SignupForm)).toThrow();
+  });
+
+  it("switches to signup mode when clicking 'Create account' link", async () => {
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const createAccountButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Create account");
+
+    expect(createAccountButton).toBeDefined();
+
+    await act(async () => {
+      createAccountButton?.props.onClick();
+    });
+
+    const signupForm = renderer!.root.findByType(SignupForm);
+    expect(signupForm).toBeDefined();
+
+    expect(() => renderer!.root.findByType(LoginForm)).toThrow();
+  });
+
+  it("switches back to login mode when clicking 'Back to log in' link", async () => {
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "signed_out",
+        user: null,
+        error: null
+      },
+      refresh: async () => {},
+      login: async () => {},
+      signup: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const createAccountButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Create account");
+
+    await act(async () => {
+      createAccountButton?.props.onClick();
+    });
+
+    const backButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Back to log in");
+
+    expect(backButton).toBeDefined();
+
+    await act(async () => {
+      backButton?.props.onClick();
+    });
+
+    const loginForm = renderer!.root.findByType(LoginForm);
+    expect(loginForm).toBeDefined();
+
+    expect(() => renderer!.root.findByType(SignupForm)).toThrow();
+  });
+
+  it("shows LoginForm in error state by default", () => {
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "error",
+        user: null,
+        error: "Session expired"
+      },
+      refresh: async () => {},
+      login: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    act(() => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const loginForm = renderer!.root.findByType(LoginForm);
+    expect(loginForm).toBeDefined();
+
+    expect(() => renderer!.root.findByType(SignupForm)).toThrow();
+  });
+
+  it("switches to signup mode in error state when clicking 'Create account'", async () => {
+    mockedUseAuth.mockReturnValue({
+      state: {
+        status: "error",
+        user: null,
+        error: "Session expired"
+      },
+      refresh: async () => {},
+      login: async () => {},
+      signup: async () => {},
+      logout: async () => {}
+    });
+
+    let renderer: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      renderer = TestRenderer.create(<App />);
+    });
+
+    const createAccountButton = renderer!.root
+      .findAllByType("button")
+      .find((button: { props: { children: string } }) => button.props.children === "Create account");
+
+    expect(createAccountButton).toBeDefined();
+
+    await act(async () => {
+      createAccountButton?.props.onClick();
+    });
+
+    const signupForm = renderer!.root.findByType(SignupForm);
+    expect(signupForm).toBeDefined();
+
+    expect(() => renderer!.root.findByType(LoginForm)).toThrow();
   });
 });
